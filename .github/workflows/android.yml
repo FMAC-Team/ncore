@@ -13,12 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
-    - name: Install Specific NDK
-      run: sdkmanager --install "ndk;29.0.14206865"
-
     - name: build libncore
       run: |
            sudo snap install zig --classic --beta

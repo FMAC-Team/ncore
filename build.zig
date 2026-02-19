@@ -51,7 +51,7 @@ pub fn build(b: *std.Build) !void {
         mod.addIncludePath(.{ .cwd_relative = include });
         mod.addLibraryPath(.{ .cwd_relative = libpath });
         lib.addIncludePath(.{ .cwd_relative = include });
-        //    lib.addLibraryPath(.{ .cwd_relative = libpath });
+        lib.addLibraryPath(.{ .cwd_relative = libpath });
         exe.linkSystemLibrary("log");
     }
 

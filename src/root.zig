@@ -6,14 +6,14 @@ const c = @cImport({
     @cInclude("jni.h");
 });
 
-export fn Java_com_example_ncore_NativeLib_helloLog(
+export fn Java_me_nekosu_aqnya_ncore_helloLog(
     env: *c.JNIEnv,
     thiz: c.jobject,
 ) callconv(.c) void {
     _ = env;
     _ = thiz;
 
-    const tag = "ZigAndroid";
+    const tag = "ncore";
     const msg = "你好，这是来自 Zig 的日志！";
 
     log.logToAndroid(.INFO, tag, msg);

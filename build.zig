@@ -52,7 +52,8 @@ pub fn build(b: *std.Build) !void {
         mod.addLibraryPath(.{ .cwd_relative = libpath });
         lib.addIncludePath(.{ .cwd_relative = include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
-        exe.linkSystemLibrary("log");
+        lib.want_lto = true;
+        lib.linkSystemLibrary("log");
     }
 
     b.installArtifact(exe);

@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
     const ndk_version = "29.0.14206865";
-    const ndk_api = "35";
+    const ndk_api = "27";
     const target = b.standardTargetOptions(.{});
 
     const optimize = b.standardOptimizeOption(.{});

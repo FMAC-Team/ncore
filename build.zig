@@ -52,6 +52,19 @@ pub fn build(b: *std.Build) !void {
         mod.addLibraryPath(.{ .cwd_relative = libpath });
         lib.addIncludePath(.{ .cwd_relative = include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
+
+        const libc_content = b.fmt(
+            \\include_dir={s}
+            \\sys_include_dir={s}
+            \\crt_dir={s}
+            \\msvc_lib_dir=
+            \\kernel32_lib_dir=
+            \\gcc_dir=
+        , .{ include, include, libpath });
+
+        const libc_path = b.addWriteFile("libc_cfg", "").add("libc.txt", libc_content);
+        lib.setLibCFile(libc_path);
+
         lib.want_lto = true;
         lib.linkSystemLibrary("log");
         lib.linkSystemLibrary("c");

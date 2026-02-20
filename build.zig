@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) !void {
         .name = "ncore",
         .linkage = .dynamic,
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/root.zig"),
+            .root_source_file = b.path("src/jni.zig"),
             .target = target,
             .optimize = optimize,
         }),

@@ -56,7 +56,7 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     const key = std.mem.span(key_ptr);
     _ = thiz;
 
-    const reply: ctl.NksuReply = undefined;
+    var reply: ctl.NksuReply = .{.flags=0,.version=0, .fd = -1 }; 
 
     const op: ctl.opcode = switch (value) {
         1 => ctl.opcode.authenticate,
@@ -64,7 +64,7 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
         else => return -1,
     };
 
-    const result: usize = ctl.ctl(op, key, reply) catch |err| {
+    const result: usize = ctl.ctl(op, key, @intFromPtr(&reply)) catch |err| {
         log.logToAndroid2(.ERROR, "ncore", "ctl error: {any}", .{err});
         return -1;
     };

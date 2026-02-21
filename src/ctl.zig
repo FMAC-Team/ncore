@@ -18,16 +18,16 @@ fn prctl(op: u32, arg1: u32, arg2: usize) !usize {
     return syscall(.prctl, rop, arg1, arg2);
 }
 
-pub fn ctl(code: opcode, key: []const u8, reply: NksuReply) !usize {
+pub fn ctl(code: opcode, key: []const u8, reply: usize) !usize {
     const totp_key = try totp.generateTotp(key);
 
     switch (code) {
         opcode.authenticate => {
-            const ret = try prctl(@intFromEnum(opcode.authenticate), totp_key, @intFromPtr(&reply));
+            const ret = try prctl(@intFromEnum(opcode.authenticate), totp_key, reply);
             return ret;
         },
         opcode.getRoot => {
-            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key, @intFromPtr(&reply));
+            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key,reply);
             return ret;
         },
     }

@@ -1,7 +1,8 @@
 const std = @import("std");
 
-pub const log = @import("log.zig");
+const log = @import("log.zig");
 const totp = @import("totp.zig");
+const ctl = @import("ctl.zig");
 
 const c = @cImport({
     @cInclude("jni.h");
@@ -41,4 +42,32 @@ export fn Java_me_nekosu_aqnya_ncore_generateTotp(
     };
 
     return @intCast(code);
+}
+
+export fn Java_me_nekosu_aqnya_ncore_ctl(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    value: c.jint,
+    j_key: c.jstring,
+) callconv(.c) c.jint {
+    const key_ptr = env.*.*.GetStringUTFChars.?(env, j_key, null);
+    if (key_ptr == null) return -1;
+    defer env.*.*.ReleaseStringUTFChars.?(env, j_key, key_ptr);
+    const key = std.mem.span(key_ptr);
+    _ = thiz;
+
+    const reply: ctl.NksuReply = undefined;
+
+    const op: ctl.opcode = switch (value) {
+        1 => ctl.opcode.authenticate,
+        2 => ctl.opcode.getRoot,
+        else => return -1,
+    };
+
+    const result: usize = ctl.ctl(op, key, reply) catch |err| {
+        log.logToAndroid2(.ERROR, "ncore", "ctl error: {any}", .{err});
+        return -1;
+    };
+    log.logToAndroid2(.ERROR, "ncore", "ctl fd: {d}", .{reply.fd});
+    return @intCast(result);
 }

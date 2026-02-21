@@ -13,12 +13,13 @@ pub const NksuReply = packed struct {
     flags: u32,
 };
 
-fn prctl(op: u32, arg1: u32, arg2: usize) !usize {
+fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     const rop = op + 200;
-    return syscall(.prctl, rop, arg1, arg2);
+    const rc = syscall(.prctl, rop, arg1, arg2);
+    return @bitCast(rc);
 }
 
-pub fn ctl(code: opcode, key: []const u8, reply: usize) !usize {
+pub fn ctl(code: opcode, key: []const u8, reply: usize) !isize {
     const totp_key = try totp.generateTotp(key);
 
     switch (code) {
@@ -27,7 +28,7 @@ pub fn ctl(code: opcode, key: []const u8, reply: usize) !usize {
             return ret;
         },
         opcode.getRoot => {
-            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key,reply);
+            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key, reply);
             return ret;
         },
     }

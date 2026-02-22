@@ -16,7 +16,7 @@ pub const NksuReply = packed struct {
 
 fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     const rop = op + 200;
-    log.info_f("op:{d} a1:{d} a2:{d}", .{ rop, arg1, arg2 });
+    log.info_f("op: {d} a1: {d} a2: 0x{x}", .{ rop, arg1, arg2 });
     const rc = syscall(.prctl, rop, arg1, arg2);
     return @bitCast(rc);
 }

@@ -53,6 +53,13 @@ pub fn build(b: *std.Build) !void {
         lib.addIncludePath(.{ .cwd_relative = include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
 
+        const lib_options = b.addOptions();
+        lib_options.addOption(bool, "is_lib", true);
+        const exe_options = b.addOptions();
+        exe_options.addOption(bool, "is_lib", false);
+        lib.root_module.addOptions("config", lib_options);
+        exe.root_module.addOptions("config", exe_options);
+
         const libc_content = b.fmt(
             \\include_dir={s}
             \\sys_include_dir={s}

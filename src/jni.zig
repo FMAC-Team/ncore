@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 
 const log = @import("log.zig");
 const totp = @import("totp.zig");
@@ -17,8 +18,11 @@ export fn Java_me_nekosu_aqnya_ncore_helloLog(
     _ = env;
     _ = thiz;
 
-    log.logToAndroid(.INFO, tag, "Hello, this is a log from Zig!");
-    log.logToAndroid(.DEBUG, tag, "Debug info: Program is running...");
+    log.info("Hello, this is a log from Zig!");
+    log.logToAndroid(.DEBUG, "Debug info: Program is running...");
+    if (comptime config.is_lib) {
+        log.logToAndroid(.INFO, "ncore build-as lib");
+    }
 }
 
 export fn Java_me_nekosu_aqnya_ncore_generateTotp(
@@ -34,9 +38,9 @@ export fn Java_me_nekosu_aqnya_ncore_generateTotp(
 
     const code = totp.generateTotp(key) catch |err| {
         if (err == error.InvalidCharacter) {
-            log.logToAndroid(.ERROR, "ncore", "Base32 contains invalid characters");
+            log.logToAndroid(.ERROR, "Base32 contains invalid characters");
         } else {
-            log.logToAndroid(.ERROR, "ncore", @errorName(err));
+            log.logToAndroid(.ERROR, @errorName(err));
         }
         return -2;
     };
@@ -65,10 +69,10 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     };
 
     const result: isize = ctl.ctl(op, key, @intFromPtr(&reply)) catch |err| {
-        log.logToAndroid2(.ERROR, "ncore", "ctl error: {any}", .{err});
+        log.logToAndroid2(.ERROR, "ctl error: {any}", .{err});
         return -1;
     };
-    log.logToAndroid2(.ERROR, "ncore", "ctl fd: {d}", .{reply.fd});
-    log.logToAndroid2(.ERROR, "ncore", "ctl result: {d}", .{result});
+    log.logToAndroid2(.ERROR, "ctl fd: {d}", .{reply.fd});
+    log.logToAndroid2(.ERROR, "ctl result: {d}", .{result});
     return @truncate(result);
 }

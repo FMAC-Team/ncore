@@ -8,12 +8,6 @@ pub const opcode = enum(u32) {
     getRoot = 2,
 };
 
-pub const NksuReply = packed struct {
-    fd: i32,
-    version: u32,
-    flags: u32,
-};
-
 fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     const rop = op + 200;
     log.info_f("op: {d} a1: {d} a2: 0x{x}", .{ rop, arg1, arg2 });

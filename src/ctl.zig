@@ -21,16 +21,16 @@ fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     return @bitCast(rc);
 }
 
-pub fn ctl(code: opcode, key: []const u8, reply: usize) !isize {
+pub fn ctl(code: opcode, key: []const u8, fd: usize) !isize {
     const totp_key = try totp.generateTotp(key);
 
     switch (code) {
         opcode.authenticate => {
-            const ret = try prctl(@intFromEnum(opcode.authenticate), totp_key, reply);
+            const ret = try prctl(@intFromEnum(opcode.authenticate), totp_key, fd);
             return ret;
         },
         opcode.getRoot => {
-            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key, reply);
+            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key, fd);
             return ret;
         },
     }

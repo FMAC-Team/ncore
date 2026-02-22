@@ -40,7 +40,7 @@ fn grt() type {
     }
 }
 
-fn log(prio: LogPriority, comptime fmt: []const u8, args: anytype) grt() {
+pub fn log(prio: LogPriority, comptime fmt: []const u8, args: anytype) grt() {
     if (comptime config.is_lib) {
         logToAndroid2(prio, fmt, args);
     } else {
@@ -53,5 +53,13 @@ pub fn info(message: []const u8) grt() {
         log(.INFO, "{s}", .{message});
     } else {
         return try log(.INFO, "{s}", .{message});
+    }
+}
+
+pub fn info_f(comptime message: []const u8, args: anytype) grt() {
+    if (comptime config.is_lib) {
+        log(.INFO, message, args);
+    } else {
+        return try log(.INFO, message, args);
     }
 }

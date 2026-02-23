@@ -17,7 +17,7 @@ jobs:
       run: |
            curl -OL https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz
            tar -xvf zig-x86_64-linux-0.15.2.tar.xz
-           ./zig-x86_64-linux-0.15.2/zig build -Dtarget=aarch64-linux-android
+           ./zig-x86_64-linux-0.15.2/zig build -Dtarget=aarch64-linux-android -Doptimize=ReleaseSafe
        
     - name: Upload lib
       uses: actions/upload-artifact@v4

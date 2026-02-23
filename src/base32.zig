@@ -40,3 +40,29 @@ pub fn decode(dest: []u8, src: []const u8) ![]u8 {
     }
     return dest[0..out_idx];
 }
+
+pub fn encode(input: []const u8, out: []u8) ![]const u8 {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    var accumulator: u16 = 0;
+    var bits: u8 = 0;
+    var count: usize = 0;
+
+    for (input) |byte| {
+        accumulator = (accumulator << 8) | byte;
+        bits += 8;
+        while (bits >= 5) {
+            bits -= 5;
+            if (count >= out.len) return error.NoSpaceLeft;
+            out[count] = alphabet[(accumulator >> bits) & 31];
+            count += 1;
+        }
+    }
+
+    if (bits > 0) {
+        if (count >= out.len) return error.NoSpaceLeft;
+        out[count] = alphabet[(accumulator << (5 - bits)) & 31];
+        count += 1;
+    }
+
+    return out[0..count];
+}

@@ -13,6 +13,21 @@ pub const LogPriority = enum(i32) {
     SILENT = 8,
 };
 
+const color = struct {
+    pub const reset = "\x1b[0m";
+    pub const red = "\x1b[31m";
+    pub const green = "\x1b[32m";
+    pub const yellow = "\x1b[33m";
+    pub const blue = "\x1b[34m";
+    pub const magenta = "\x1b[35m";
+    pub const cyan = "\x1b[36m";
+    pub const bold = "\x1b[1m";
+    pub const bold_green = "\x1b[1;32m";
+    pub const bold_red = "\x1b[1;31m";
+    pub const bold_yellow = "\x1b[1;33m";
+    pub const bold_cyan = "\x1b[1;36m";
+};
+
 const tag = "ncore";
 
 pub extern "log" fn __android_log_print(prio: i32, tag: [*:0]const u8, fmt: [*:0]const u8, ...) i32;
@@ -62,4 +77,44 @@ pub fn info_f(comptime message: []const u8, args: anytype) grt() {
     } else {
         return try log(.INFO, message, args);
     }
+}
+
+fn pr(comptime color_code: []const u8, comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(color_code ++ fmt ++ color.reset ++ "\n", args);
+}
+
+pub fn pr_green(comptime fmt: []const u8, args: anytype) void {
+    pr(color.green, fmt, args);
+}
+
+pub fn pr_bgreen(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(color.bold_green ++ fmt ++ color.reset, args);
+}
+
+pub fn pr_bred(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(color.bold_red ++ fmt ++ color.reset, args);
+}
+
+pub fn pr_bcyan(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(color.bold_cyan ++ fmt ++ color.reset, args);
+}
+
+pub fn pr_red(comptime fmt: []const u8, args: anytype) void {
+    pr(color.red, fmt, args);
+}
+
+pub fn pr_yellow(comptime fmt: []const u8, args: anytype) void {
+    pr(color.yellow, fmt, args);
+}
+
+pub fn pr_blue(comptime fmt: []const u8, args: anytype) void {
+    pr(color.blue, fmt, args);
+}
+
+pub fn pr_cyan(comptime fmt: []const u8, args: anytype) void {
+    pr(color.cyan, fmt, args);
+}
+
+pub fn pr_bold(comptime fmt: []const u8, args: anytype) void {
+    pr(color.bold, fmt, args);
 }

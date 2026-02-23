@@ -19,8 +19,14 @@ jobs:
            tar -xvf zig-x86_64-linux-0.15.2.tar.xz
            ./zig-x86_64-linux-0.15.2/zig build -Dtarget=aarch64-linux-android
        
-    - name: Upload Release Artifact
+    - name: Upload lib
       uses: actions/upload-artifact@v4
       with:
         name: libncore
         path: zig-out/lib/*.so
+
+    - name: Upload exe
+      uses: actions/upload-artifact@v4
+      with:
+        name: ncore
+        path: zig-out/bin/*

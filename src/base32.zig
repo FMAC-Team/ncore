@@ -4,6 +4,7 @@ pub const Base32Error = error{
     InvalidCharacter,
     InvalidLength,
     BufferTooSmall,
+    OutOfMemory,
 };
 
 fn charToValue(c: u8) !u5 {
@@ -41,26 +42,41 @@ pub fn decode(dest: []u8, src: []const u8) ![]u8 {
     return dest[0..out_idx];
 }
 
-pub fn encode(input: []const u8, out: []u8) ![]const u8 {
+fn encodedLen(input_len: usize) usize {
+    return (input_len * 8 + 4) / 5;
+}
+
+pub fn encode(
+    allocator: std.mem.Allocator,
+    input: []const u8,
+) Base32Error![]u8 {
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    var accumulator: u16 = 0;
+
+    const out_len = encodedLen(input.len);
+    var out = try allocator.alloc(u8, out_len);
+
+    var accumulator: u32 = 0;
     var bits: u8 = 0;
     var count: usize = 0;
 
     for (input) |byte| {
-        accumulator = (accumulator << 8) | byte;
+        accumulator = (accumulator << 8) | @as(u32, byte);
         bits += 8;
+
         while (bits >= 5) {
             bits -= 5;
-            if (count >= out.len) return error.NoSpaceLeft;
-            out[count] = alphabet[(accumulator >> bits) & 31];
+            const shift: u5 = @intCast(bits);
+            const index = @as(u5, @intCast((accumulator >> shift) & 0x1F));
+
+            out[count] = alphabet[index];
             count += 1;
         }
     }
 
     if (bits > 0) {
-        if (count >= out.len) return error.NoSpaceLeft;
-        out[count] = alphabet[(accumulator << (5 - bits)) & 31];
+        const shift: u5 = @intCast(5 - bits);
+        const index: u5 = @intCast((accumulator << shift) & 0x1F);
+        out[count] = alphabet[index];
         count += 1;
     }
 

@@ -16,6 +16,14 @@ fn prUsage() !void {
     try log.info("\n");
 }
 
+fn getb32(
+    allocator: std.mem.Allocator,
+) !void {
+    const code = try ncore.totp.genKey(allocator);
+    defer allocator.free(code);
+    try log.info_f("{s}\n", .{code});
+}
+
 const parg = enum {
     b32,
     help,
@@ -43,7 +51,7 @@ pub fn main() !void {
 
     const cmd = parg.getcmd(args[1]);
     switch (cmd) {
-        .b32 => unreachable, // TODO
+        .b32 => try getb32(allocator),
         .help => try prUsage(),
         .unknown => {
             log.pr_bred("error", .{});

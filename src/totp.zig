@@ -31,3 +31,13 @@ pub fn generateTotp(key: []const u8) !u32 {
 
     return binary % 1_000_000;
 }
+
+pub fn genKey(
+    allocator: std.mem.Allocator,
+) ![]u8 {
+    const raw = try allocator.alloc(u8, 32);
+    defer allocator.free(raw);
+    std.crypto.random.bytes(raw);
+    const key = try base32.encode(allocator, raw);
+    return key;
+}

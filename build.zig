@@ -71,10 +71,15 @@ pub fn build(b: *std.Build) !void {
 
         const libc_path = b.addWriteFile("libc_cfg", "").add("libc.txt", libc_content);
         lib.setLibCFile(libc_path);
-
-        lib.want_lto = true;
         lib.linkSystemLibrary("log");
         lib.linkSystemLibrary("c");
+    }
+
+    if (optimize != .Debug) {
+        exe.root_module.strip = true;
+        exe.pie = true;
+        exe.want_lto = true;
+        lib.want_lto = true;
     }
 
     b.installArtifact(exe);

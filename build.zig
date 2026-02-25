@@ -36,6 +36,23 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
+    const lib_options = b.addOptions();
+    lib_options.addOption(bool, "is_lib", true);
+    const exe_options = b.addOptions();
+    exe_options.addOption(bool, "is_lib", false);
+    lib.root_module.addOptions("config", lib_options);
+    lib_options.addOption(bool, "debug", true);
+    exe.root_module.addOptions("config", exe_options);
+
+    if (optimize != .Debug) {
+        exe.root_module.strip = true;
+        exe.pie = true;
+        exe.want_lto = true;
+        lib.want_lto = true;
+        lib.root_module.strip = true;
+        lib_options.addOption(bool, "debug", false);
+    }
+
     if (target.result.abi == .android) {
         const allocator = b.allocator;
         const arch_name = @tagName(target.result.cpu.arch);
@@ -53,13 +70,6 @@ pub fn build(b: *std.Build) !void {
         lib.addIncludePath(.{ .cwd_relative = include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
 
-        const lib_options = b.addOptions();
-        lib_options.addOption(bool, "is_lib", true);
-        const exe_options = b.addOptions();
-        exe_options.addOption(bool, "is_lib", false);
-        lib.root_module.addOptions("config", lib_options);
-        exe.root_module.addOptions("config", exe_options);
-
         const libc_content = b.fmt(
             \\include_dir={s}
             \\sys_include_dir={s}
@@ -73,14 +83,6 @@ pub fn build(b: *std.Build) !void {
         lib.setLibCFile(libc_path);
         lib.linkSystemLibrary("log");
         lib.linkSystemLibrary("c");
-    }
-
-    if (optimize != .Debug) {
-        exe.root_module.strip = true;
-        exe.pie = true;
-        exe.want_lto = true;
-   //     lib.want_lto = true;
-   //     lib.root_module.strip = true;
     }
 
     b.installArtifact(exe);

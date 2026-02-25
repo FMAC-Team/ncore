@@ -79,7 +79,8 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.strip = true;
         exe.pie = true;
         exe.want_lto = true;
-        lib.want_lto = true;
+   //     lib.want_lto = true;
+   //     lib.root_module.strip = true;
     }
 
     b.installArtifact(exe);

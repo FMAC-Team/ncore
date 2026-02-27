@@ -13,6 +13,8 @@ fn prUsage() !void {
     log.pr_bgreen("Options: \n", .{});
     log.pr_bcyan("  -b, --base32 \n", .{});
     try log.info("          Generate a TOTP key using base32 encoding.\n");
+    log.pr_bcyan("  -h, --help \n", .{});
+    try log.info("          Print help.\n");
     try log.info("\n");
 }
 

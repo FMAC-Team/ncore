@@ -1,4 +1,6 @@
 const std = @import("std");
+const config = @import("config");
+
 const totp = @import("totp.zig");
 const log = @import("log.zig");
 const syscall = std.os.linux.syscall3;
@@ -10,7 +12,9 @@ pub const opcode = enum(u32) {
 
 fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     const rop = op + 200;
-    log.info_f("op: {d} a1: {d} a2: 0x{x}", .{ rop, arg1, arg2 });
+    if (comptime config.debug) {
+        log.info_f("op: {d} a1: {d} a2: 0x{x}", .{ rop, arg1, arg2 });
+    }
     const rc = syscall(.prctl, rop, arg1, arg2);
     return @bitCast(rc);
 }

@@ -7,7 +7,7 @@ pub const Base32Error = error{
     OutOfMemory,
 };
 
-fn charToValue(c: u8) !u5 {
+inline fn charToValue(c: u8) !u5 {
     return switch (c) {
         'A'...'Z' => @intCast(c - 'A'),
         'a'...'z' => @intCast(c - 'a'),
@@ -16,19 +16,24 @@ fn charToValue(c: u8) !u5 {
     };
 }
 
-pub fn decode(dest: []u8, src: []const u8) ![]u8 {
-    var len = src.len;
-    while (len > 0 and src[len - 1] == '=') : (len -= 1) {}
-    const clean_src = src[0..len];
-    const expected_len = (clean_src.len * 5) / 8;
-    if (dest.len < expected_len) return error.BufferTooSmall;
+pub fn decode(comptime src: []const u8) [countDecodedLen(src)]u8 {
+    @setEvalBranchQuota(5000);
+
+    const effective_src = comptime blk: {
+        var len = src.len;
+        while (len > 0 and src[len - 1] == '=') : (len -= 1) {}
+        break :blk src[0..len];
+    };
+
+    const dest_len = (effective_src.len * 5) / 8;
+    var dest: [dest_len]u8 = undefined;
 
     var buffer: u40 = 0;
     var bits_left: u6 = 0;
     var out_idx: usize = 0;
 
-    for (clean_src) |c| {
-        const val = try charToValue(c);
+    for (effective_src) |c| {
+        const val = charToValue(c) catch @compileError("Base32 contains invalid characters");
 
         buffer = (buffer << 5) | val;
         bits_left += 5;
@@ -39,7 +44,13 @@ pub fn decode(dest: []u8, src: []const u8) ![]u8 {
             out_idx += 1;
         }
     }
-    return dest[0..out_idx];
+    return dest;
+}
+
+fn countDecodedLen(comptime src: []const u8) usize {
+    var len = src.len;
+    while (len > 0 and src[len - 1] == '=') : (len -= 1) {}
+    return (len * 5) / 8;
 }
 
 fn encodedLen(input_len: usize) usize {

@@ -1,16 +1,12 @@
 const std = @import("std");
 const base32 = @import("base32.zig");
+const keyns = @import("key.zig");
 const crypto = std.crypto;
 const Sha1 = crypto.hash.Sha1;
 const HmacSha1 = crypto.auth.hmac.Hmac(Sha1);
 
-pub fn generateTotp(key: []const u8) !u32 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const secret_buf = try gpa.allocator().alloc(u8, key.len);
-    defer gpa.allocator().free(secret_buf);
-
-    const decoded = try base32.decode(secret_buf, key);
+pub fn generateTotp() !u32 {
+    const decoded = keyns.key.secret_data;
 
     const time_step: i64 = 30;
     const timestamp = std.time.timestamp();
@@ -21,7 +17,7 @@ pub fn generateTotp(key: []const u8) !u32 {
 
     var hmac_result: [HmacSha1.mac_length]u8 = undefined;
 
-    HmacSha1.create(&hmac_result, &counter_bytes, decoded);
+    HmacSha1.create(&hmac_result, &counter_bytes, &decoded);
 
     const offset = hmac_result[hmac_result.len - 1] & 0x0F;
     const sub_slice = hmac_result[offset .. offset + 4];

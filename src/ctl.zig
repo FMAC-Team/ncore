@@ -19,8 +19,8 @@ fn prctl(op: u32, arg1: u32, arg2: usize) !isize {
     return @bitCast(rc);
 }
 
-pub fn ctl(code: opcode, key: []const u8, fd: usize) !isize {
-    const totp_key = try totp.generateTotp(key);
+pub fn ctl(code: opcode, fd: usize) !isize {
+    const totp_key = try totp.generateTotp();
 
     switch (code) {
         opcode.authenticate => {

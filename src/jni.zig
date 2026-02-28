@@ -25,40 +25,13 @@ export fn Java_me_nekosu_aqnya_ncore_helloLog(
     }
 }
 
-export fn Java_me_nekosu_aqnya_ncore_generateTotp(
-    env: *c.JNIEnv,
-    _: c.jclass,
-    j_key: c.jstring,
-) callconv(.c) c.jint {
-    const key_ptr = env.*.*.GetStringUTFChars.?(env, j_key, null);
-    if (key_ptr == null) return -1;
-    defer env.*.*.ReleaseStringUTFChars.?(env, j_key, key_ptr);
-
-    const key = std.mem.span(key_ptr);
-
-    const code = totp.generateTotp(key) catch |err| {
-        if (err == error.InvalidCharacter) {
-            log.logToAndroid(.ERROR, "Base32 contains invalid characters");
-        } else {
-            log.logToAndroid(.ERROR, @errorName(err));
-        }
-        return -2;
-    };
-
-    return @intCast(code);
-}
-
 export fn Java_me_nekosu_aqnya_ncore_ctl(
     env: *c.JNIEnv,
     thiz: c.jobject,
     value: c.jint,
-    j_key: c.jstring,
 ) callconv(.c) c.jint {
-    const key_ptr = env.*.*.GetStringUTFChars.?(env, j_key, null);
-    if (key_ptr == null) return -1;
-    defer env.*.*.ReleaseStringUTFChars.?(env, j_key, key_ptr);
-    const key = std.mem.span(key_ptr);
     _ = thiz;
+    _ = env;
 
     var fd: i32 = -1;
 
@@ -68,7 +41,7 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
         else => return -1,
     };
 
-    const result: isize = ctl.ctl(op, key, @intFromPtr(&fd)) catch |err| {
+    const result: isize = ctl.ctl(op, @intFromPtr(&fd)) catch |err| {
         log.logToAndroid2(.ERROR, "ctl error: {any}", .{err});
         return -1;
     };

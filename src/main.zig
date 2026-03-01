@@ -13,6 +13,8 @@ fn prUsage() !void {
     log.pr_bgreen("Options: \n", .{});
     log.pr_bcyan("  -b, --base32 \n", .{});
     try log.info("          Generate a TOTP key using base32 encoding.\n");
+    log.pr_bcyan("  -c, --code \n", .{});
+    try log.info("          Gen totp code by build-in key.\n");
     log.pr_bcyan("  -h, --help \n", .{});
     try log.info("          Print help.\n");
     try log.info("\n");
@@ -28,12 +30,15 @@ fn getb32(
 
 const parg = enum {
     b32,
+    totp,
     help,
     unknown,
 
+    const meql = std.mem.eql;
     pub fn getcmd(s: []const u8) parg {
-        if (std.mem.eql(u8, s, "--base32") or std.mem.eql(u8, s, "-b")) return .b32;
-        if (std.mem.eql(u8, s, "--help") or std.mem.eql(u8, s, "-h")) return .help;
+        if (meql(u8, s, "--base32") or meql(u8, s, "-b")) return .b32;
+        if (meql(u8, s, "--code") or meql(u8, s, "-c")) return .totp;
+        if (meql(u8, s, "--help") or meql(u8, s, "-h")) return .help;
         return .unknown;
     }
 };
@@ -54,6 +59,10 @@ pub fn main() !void {
     const cmd = parg.getcmd(args[1]);
     switch (cmd) {
         .b32 => try getb32(allocator),
+        .totp => {
+            const code = try ncore.totp.generateTotp();
+            try log.info_f("Totp code: {d}\n", .{code});
+        },
         .help => try prUsage(),
         .unknown => {
             log.pr_bred("error", .{});

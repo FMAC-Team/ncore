@@ -1,12 +1,12 @@
 const std = @import("std");
 const base32 = @import("base32.zig");
-const keyns = @import("key.zig");
+const key = @import("key.zig");
 const crypto = std.crypto;
 const Sha1 = crypto.hash.Sha1;
 const HmacSha1 = crypto.auth.hmac.Hmac(Sha1);
 
 pub fn generateTotp() !u32 {
-    const decoded = keyns.key.secret_data;
+    const decoded = key.totp;
 
     const time_step: i64 = 30;
     const timestamp = std.time.timestamp();
@@ -34,6 +34,6 @@ pub fn genKey(
     const raw = try allocator.alloc(u8, 32);
     defer allocator.free(raw);
     std.crypto.random.bytes(raw);
-    const key = try base32.encode(allocator, raw);
-    return key;
+    const totpkey = try base32.encode(allocator, raw);
+    return totpkey;
 }

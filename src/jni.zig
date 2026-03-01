@@ -4,12 +4,15 @@ const config = @import("config");
 const log = @import("log.zig");
 const totp = @import("totp.zig");
 const ctl = @import("ctl.zig");
+const path = @import("path.zig");
 
 const c = @cImport({
     @cInclude("jni.h");
 });
 
 const tag = "ncore";
+
+// JNI_OnLoad put on path.zig
 
 export fn Java_me_nekosu_aqnya_ncore_helloLog(
     env: *c.JNIEnv,
@@ -18,8 +21,11 @@ export fn Java_me_nekosu_aqnya_ncore_helloLog(
     _ = env;
     _ = thiz;
 
+    const storage = path.getPath();
+
     log.info("Hello, this is a log from Zig!");
     log.logToAndroid(.DEBUG, "Debug info: Program is running...");
+    log.logToAndroid2(.INFO, "path: {s}", .{storage});
     if (comptime config.is_lib) {
         log.logToAndroid(.INFO, "ncore build-as lib");
     }

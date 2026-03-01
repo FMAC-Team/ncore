@@ -6,22 +6,22 @@ const init = @import("init.zig");
 const jni = @cImport({
     @cInclude("jni.h");
 });
-const allocator: std.mem.Allocator = undefined;
+const allocator = std.heap.page_allocator;
 
 pub fn fetchPathFromSystem(env: *jni.JNIEnv) ![]u8 {
     const j = env.*.*;
 
-    const at_class = j.FindClass.?(env, "android/app/ActivityThread");
-    const get_app_mid = j.GetStaticMethodID.?(env, at_class, "currentApplication", "()Landroid/app/Application;");
-    const context = j.CallStaticObjectMethod.?(env, at_class, get_app_mid);
+    const at_class = j.FindClass.?(env, "android/app/ActivityThread") orelse return error.ClassNotFound;
+    const get_app_mid = j.GetStaticMethodID.?(env, at_class, "currentApplication", "()Landroid/app/Application;") orelse return error.MethodNotFound;
+    const context = j.CallStaticObjectMethod.?(env, at_class, get_app_mid) orelse return error.ContextNotFound;
 
-    const ctx_class = j.FindClass.?(env, "android/content/Context");
-    const get_files_mid = j.GetMethodID.?(env, ctx_class, "getFilesDir", "()Ljava/io/File;");
-    const file_obj = j.CallObjectMethod.?(env, context, get_files_mid);
+    const ctx_class = j.FindClass.?(env, "android/content/Context") orelse return error.ClassNotFound;
+    const get_files_mid = j.GetMethodID.?(env, ctx_class, "getFilesDir", "()Ljava/io/File;") orelse return error.MethodNotFound;
+    const file_obj = j.CallObjectMethod.?(env, context, get_files_mid) orelse return error.ContextNotFound;
 
-    const file_class = j.FindClass.?(env, "java/io/File");
-    const get_path_mid = j.GetMethodID.?(env, file_class, "getAbsolutePath", "()Ljava/lang/String;");
-    const j_path = @as(jni.jstring, @ptrCast(j.CallObjectMethod.?(env, file_obj, get_path_mid)));
+    const file_class = j.FindClass.?(env, "java/io/File") orelse return error.ClassNotFound;
+    const get_path_mid = j.GetMethodID.?(env, file_class, "getAbsolutePath", "()Ljava/lang/String;") orelse return error.MethodNotFound;
+    const j_path = @as(jni.jstring, @ptrCast(j.CallObjectMethod.?(env, file_obj, get_path_mid))) orelse return error.ContextNotFound;
 
     const chars = j.GetStringUTFChars.?(env, j_path, null);
     defer j.ReleaseStringUTFChars.?(env, j_path, chars);

@@ -12,7 +12,7 @@ const c = @cImport({
 
 const tag = "ncore";
 
-// JNI_OnLoad put on path.zig
+// JNI_OnLoad put on init.zig
 
 export fn Java_me_nekosu_aqnya_ncore_helloLog(
     env: *c.JNIEnv,

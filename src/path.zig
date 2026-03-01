@@ -1,15 +1,14 @@
 const std = @import("std");
 const config = @import("config");
 
+const init = @import("init.zig");
+
 const jni = @cImport({
     @cInclude("jni.h");
 });
+const allocator: std.mem.Allocator = undefined;
 
-var app_path: []u8 = &[_]u8{};
-var allocator: std.mem.Allocator = undefined;
-var jvm: *jni.JavaVM = undefined;
-
-fn fetchPathFromSystem(env: *jni.JNIEnv) ![]u8 {
+pub fn fetchPathFromSystem(env: *jni.JNIEnv) ![]u8 {
     const j = env.*.*;
 
     const at_class = j.FindClass.?(env, "android/app/ActivityThread");
@@ -31,22 +30,5 @@ fn fetchPathFromSystem(env: *jni.JNIEnv) ![]u8 {
 }
 
 pub fn getPath() []const u8 {
-    return app_path;
-}
-
-export fn JNI_OnLoad(vm: *jni.JavaVM, reserved: ?*anyopaque) jni.jint {
-    _ = reserved;
-    jvm = vm;
-    allocator = std.heap.page_allocator;
-
-    var env: *jni.JNIEnv = undefined;
-    if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), jni.JNI_VERSION_1_6) == jni.JNI_OK) {
-        if (fetchPathFromSystem(env)) |path| {
-            app_path = path;
-        } else |_| {
-            // TODO
-        }
-    }
-
-    return jni.JNI_VERSION_1_6;
+    return init.app_path;
 }

@@ -62,12 +62,14 @@ pub fn build(b: *std.Build) !void {
         const path = try std.process.getEnvVarOwned(allocator, "ANDROID_HOME");
         const sys_root = b.pathJoin(&.{ path, "ndk/", ndk_version, "toolchains/llvm/prebuilt/linux-x86_64/sysroot" });
         const include = b.pathJoin(&.{ sys_root, "/usr/include" });
+        const arch_include = b.pathJoin(&.{ include, "/aarch64-linux-android" });
         const libpath = b.pathJoin(&.{ sys_root, "/usr/lib/", triple, ndk_api });
         exe.addIncludePath(.{ .cwd_relative = include });
         exe.addLibraryPath(.{ .cwd_relative = libpath });
         mod.addIncludePath(.{ .cwd_relative = include });
         mod.addLibraryPath(.{ .cwd_relative = libpath });
         lib.addIncludePath(.{ .cwd_relative = include });
+        lib.addIncludePath(.{ .cwd_relative = arch_include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
 
         const libc_content = b.fmt(

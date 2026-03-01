@@ -41,9 +41,12 @@ pub fn build(b: *std.Build) !void {
     const exe_options = b.addOptions();
     exe_options.addOption(bool, "is_lib", false);
     lib.root_module.addOptions("config", lib_options);
-    lib_options.addOption(bool, "debug", true);
+
     exe.root_module.addOptions("config", exe_options);
 
+    if (optimize == .Debug) {
+        lib_options.addOption(bool, "debug", true);
+    }
     if (optimize != .Debug) {
         exe.root_module.strip = true;
         exe.pie = true;

@@ -68,7 +68,7 @@ fn set_seccomp() !void {
         return error.PrctlFailed;
     }
 
-    if (linux.syscall3(.prctl, c.PR_SET_SECCOMP, c.SECCOMP_MODE_FILTER, @intFromPtr(&prog)) < 0) {
+    if (linux.syscall3(.seccomp, c.SECCOMP_SET_MODE_FILTER, c.SECCOMP_FILTER_FLAG_TSYNC, @intFromPtr(&prog)) < 0) {
         return error.SeccompFailed;
     }
 }
@@ -92,6 +92,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     }
     set_seccomp() catch |err| {
         log.info("seccomp failed with error: {s}", .{@errorName(err)});
+        _ = linux.syscall1(.exit_group, 1);
     };
     if (comptime config.debug) {
         log.info("set seccomp\n");

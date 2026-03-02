@@ -97,20 +97,23 @@ fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) vo
 
     const msg = log_message.*;
 
-    var ts: c.struct_timespec = undefined;
-    _ = c.clock_gettime(c.CLOCK_REALTIME_COARSE, &ts);
+    var timer: c.time_t = undefined;
+    var now: c.struct_tm = undefined;
+    _ = c.time(&timer);
+    _ = c.localtime_r(&timer, &now);
 
-    const millis = @divTrunc(ts.tv_nsec, 1_000_000);
-
-    var time_buf: [32]u8 = undefined;
-    const time_slice = std.fmt.bufPrint(
+    var time_buf: [32]u8 = undefined; // "HH:MM:SS"
+    const time = std.fmt.bufPrint(
         &time_buf,
-        "[{d}.{d:0>3}]",
-        .{ ts.tv_sec, millis },
-    ) catch return;
+        "[{d:0>4}/{d:0>2}/{d:0>2} {:0>2}:{:0>2}:{:0>2}]",
+        .{ @as(u32, @intCast(now.tm_year + 1900)), @as(u32, @intCast(now.tm_mon + 1)), @as(u32, @intCast(now.tm_mday)), @as(u8, @intCast(now.tm_hour)), @as(u8, @intCast(now.tm_min)), @as(u8, @intCast(now.tm_sec)) },
+    ) catch |err| {
+        log.logToAndroid2(.ERROR, "format time failed: {}", .{err});
+        return;
+    };
 
     var iovecs = [_]c.struct_iovec{
-        .{ .iov_base = @constCast(time_slice.ptr), .iov_len = time_slice.len },
+        .{ .iov_base = @constCast(time.ptr), .iov_len = time.len },
         .{ .iov_base = @constCast(" ".ptr), .iov_len = 1 },
         .{ .iov_base = @constCast(msg.tag), .iov_len = @intCast(std.mem.len(msg.tag)) },
         .{ .iov_base = @constCast(": ".ptr), .iov_len = 2 },

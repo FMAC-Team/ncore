@@ -15,6 +15,8 @@ const c = @cImport({
     @cInclude("android/log.h");
     @cInclude("fcntl.h");
     @cInclude("unistd.h");
+    @cInclude("sys/uio.h");
+    @cInclude("time.h");
 });
 
 pub var app_path: []u8 = &[_]u8{};
@@ -94,21 +96,40 @@ fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) vo
     if (log_file_fd == -1) return;
 
     const msg = log_message.*;
-    _ = c.write(log_file_fd, msg.tag, @intCast(std.mem.len(msg.tag)));
-    _ = c.write(log_file_fd, ": ", 2);
-    _ = c.write(log_file_fd, msg.message, @intCast(std.mem.len(msg.message)));
-    _ = c.write(log_file_fd, "\n", 1);
+
+    var ts: c.struct_timespec = undefined;
+    _ = c.clock_gettime(c.CLOCK_REALTIME_COARSE, &ts);
+
+    const millis = @divTrunc(ts.tv_nsec, 1_000_000);
+
+    var time_buf: [32]u8 = undefined;
+    const time_slice = std.fmt.bufPrint(
+        &time_buf,
+        "[{d}.{d:0>3}]",
+        .{ ts.tv_sec, millis },
+    ) catch return;
+
+    var iovecs = [_]c.struct_iovec{
+        .{ .iov_base = @constCast(time_slice.ptr), .iov_len = time_slice.len },
+        .{ .iov_base = @constCast(" ".ptr), .iov_len = 1 },
+        .{ .iov_base = @constCast(msg.tag), .iov_len = @intCast(std.mem.len(msg.tag)) },
+        .{ .iov_base = @constCast(": ".ptr), .iov_len = 2 },
+        .{ .iov_base = @constCast(msg.message), .iov_len = @intCast(std.mem.len(msg.message)) },
+        .{ .iov_base = @constCast("\n".ptr), .iov_len = 1 },
+    };
+
+    _ = c.writev(log_file_fd, &iovecs, iovecs.len);
 
     c.__android_log_logd_logger(log_message);
 }
 
 fn init_log() void {
     var path_buf: [512]u8 = undefined;
-    const full_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{app_path}) catch {
+    const log_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{app_path}) catch {
         return;
     };
 
-    const fd = c.open(full_path.ptr, c.O_CREAT | c.O_WRONLY | c.O_APPEND, @as(c_int, 0o666));
+    const fd = c.open(log_path.ptr, c.O_CREAT | c.O_WRONLY | c.O_TRUNC | c.O_CLOEXEC, @as(c_int, 0o666));
     if (fd >= 0) {
         log_file_fd = fd;
         c.__android_log_set_logger(custom_logger);

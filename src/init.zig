@@ -12,6 +12,9 @@ const c = @cImport({
     @cInclude("sys/ptrace.h");
     @cInclude("linux/seccomp.h");
     @cInclude("linux/filter.h");
+    @cInclude("android/log.h");
+    @cInclude("fcntl.h");
+    @cInclude("unistd.h");
 });
 
 pub var app_path: []u8 = &[_]u8{};
@@ -56,6 +59,9 @@ fn set_seccomp() !void {
         jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.process_vm_writev)), 0, 1),
         stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
 
+        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.execve)), 0, 1),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
+
         stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
     };
 
@@ -82,6 +88,33 @@ fn flags_set() void {
     if (!ok(linux.syscall2(.setrlimit, c.RLIMIT_CORE, @intFromPtr(&lim)))) log.info("set rlimit failed"); // setrlimit(RLIMIT_CORE, 0);
 }
 
+var log_file_fd: i32 = -1;
+
+fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) void {
+    if (log_file_fd == -1) return;
+
+    const msg = log_message.*;
+    _ = c.write(log_file_fd, msg.tag, @intCast(std.mem.len(msg.tag)));
+    _ = c.write(log_file_fd, ": ", 2);
+    _ = c.write(log_file_fd, msg.message, @intCast(std.mem.len(msg.message)));
+    _ = c.write(log_file_fd, "\n", 1);
+
+    c.__android_log_logd_logger(log_message);
+}
+
+fn init_log() void {
+    var path_buf: [512]u8 = undefined;
+    const full_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{app_path}) catch {
+        return;
+    };
+
+    const fd = c.open(full_path.ptr, c.O_CREAT | c.O_WRONLY | c.O_APPEND, @as(c_int, 0o666));
+    if (fd >= 0) {
+        log_file_fd = fd;
+        c.__android_log_set_logger(custom_logger);
+    }
+}
+
 export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     _ = reserved;
     jvm = vm;
@@ -102,6 +135,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), c.JNI_VERSION_1_6) == c.JNI_OK) {
         if (path.fetchPathFromSystem(env)) |p| {
             app_path = p;
+            init_log();
         } else |_| {
             // TODO
         }

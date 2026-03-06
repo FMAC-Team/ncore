@@ -32,7 +32,7 @@ pub fn decode(comptime src: []const u8) [countDecodedLen(src)]u8 {
     var bits_left: u6 = 0;
     var out_idx: usize = 0;
 
-    for (effective_src) |c| {
+    inline for (effective_src) |c| {
         const val = charToValue(c) catch @compileError("Base32 contains invalid characters");
 
         buffer = (buffer << 5) | val;
@@ -92,4 +92,19 @@ pub fn encode(
     }
 
     return out[0..count];
+}
+
+test "base32 decode no padding" {
+    const testcode = decode("JBSWY3DPEBLW64TMMQQQ");
+    try std.testing.expectEqualStrings("Hello World!", &testcode);
+}
+
+test "base32 encode" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const b32code = try encode(allocator, "test");
+    defer allocator.free(b32code);
+    const code = "ORSXG5A";
+    try std.testing.expectEqualStrings(code, b32code);
 }

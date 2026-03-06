@@ -5,52 +5,53 @@ const log = @import("log.zig");
 
 const exe_name = "ncore";
 
-fn unpack_boot(allocator: std.mem.Allocator, imgfile: []const u8) !void {
+fn save(name: []const u8, data: []const u8) !void {
+    if (data.len == 0) return;
+
+    log.pr_bcyan("[info] ", .{});
+    try log.info_f("{s} size: {d} bytes\n", .{ name, data.len });
+
+    const file = try std.fs.cwd().createFile(name, .{});
+    defer file.close();
+
+    try file.writeAll(data);
+
+    std.debug.print("Saved {s}\n", .{name});
+}
+
+pub fn unpack_boot(imgfile: []const u8) !void {
     const file = try std.fs.cwd().openFile(imgfile, .{});
     defer file.close();
 
-    const file_size = (try file.stat()).size;
-    const buffer = try allocator.alloc(u8, file_size);
-    defer allocator.free(buffer);
+    const size: usize = @intCast(try file.getEndPos());
 
-    _ = try file.readAll(buffer);
+    const mapped = try std.posix.mmap(
+        null,
+        size,
+        std.posix.PROT.READ,
+        .{ .TYPE = .PRIVATE },
+        file.handle,
+        0,
+    );
+    defer std.posix.munmap(mapped);
 
-    const unpacked = try ncore.boot.unpack_boot_image(buffer);
+    const unpacked = try ncore.boot.unpack_boot_image(mapped);
 
-    if (unpacked.kernel.len > 0) {
-        try log.info_f("Kernel size: {d} bytes\n", .{unpacked.kernel.len});
-        const out_file = try std.fs.cwd().createFile("kernel.raw", .{});
-        defer out_file.close();
-        try out_file.writeAll(unpacked.kernel);
-        std.debug.print("Saved kernel.raw\n", .{});
-    }
-    if (unpacked.ramdisk.len > 0) {
-        try log.info_f("Ramdisk size: {d} bytes\n", .{unpacked.ramdisk.len});
-        const out_file = try std.fs.cwd().createFile("ramdisk", .{});
-        defer out_file.close();
-        try out_file.writeAll(unpacked.ramdisk);
-        std.debug.print("Saved ramdisk\n", .{});
-    }
-    if (unpacked.second.len > 0) {
-        try log.info_f("second size: {d} bytes\n", .{unpacked.second.len});
-        const out_file = try std.fs.cwd().createFile("second", .{});
-        defer out_file.close();
-        try out_file.writeAll(unpacked.second);
-        std.debug.print("Saved second\n", .{});
-    }
-    if (unpacked.recovery_dtbo.len > 0) {
-        try log.info_f("recovery_dtbo size: {d} bytes\n", .{unpacked.recovery_dtbo.len});
-        const out_file = try std.fs.cwd().createFile("recovery_dtbo", .{});
-        defer out_file.close();
-        try out_file.writeAll(unpacked.recovery_dtbo);
-        std.debug.print("Saved recovery_dtbo\n", .{});
-    }
-    if (unpacked.dtb.len > 0) {
-        try log.info_f("dtb size: {d} bytes\n", .{unpacked.dtb.len});
-        const out_file = try std.fs.cwd().createFile("dtb", .{});
-        defer out_file.close();
-        try out_file.writeAll(unpacked.dtb);
-        std.debug.print("Saved dtb\n", .{});
+    const Section = struct {
+        name: []const u8,
+        data: []const u8,
+    };
+
+    const sections = [_]Section{
+        .{ .name = "kernel", .data = unpacked.kernel },
+        .{ .name = "ramdisk", .data = unpacked.ramdisk },
+        .{ .name = "second", .data = unpacked.second },
+        .{ .name = "recovery_dtbo", .data = unpacked.recovery_dtbo },
+        .{ .name = "dtb", .data = unpacked.dtb },
+    };
+
+    inline for (sections) |s| {
+        try save(s.name, s.data);
     }
 }
 
@@ -124,7 +125,7 @@ pub fn main() !void {
                 try log.info_f("try {s} -u [file]\n", .{args[0]});
                 return;
             }
-            try unpack_boot(allocator, args[2]);
+            try unpack_boot(args[2]);
         },
         .unknown => {
             log.pr_bred("error", .{});

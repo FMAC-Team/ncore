@@ -39,14 +39,14 @@ pub const boot_img_hdr_v0 = extern struct {
 pub const boot_img_hdr_v1 = extern struct {
     base: boot_img_hdr_v0,
     recovery_dtbo_size: u32,
-    recovery_dtbo_offset: u64,
+    recovery_dtbo_offset: [8]u8,
     header_size: u32,
 };
 
 pub const boot_img_hdr_v2 = extern struct {
     base: boot_img_hdr_v1,
     dtb_size: u32,
-    dtb_addr: u64,
+    dtb_addr: [8]u8,
 };
 
 pub const boot_img_hdr_v3 = extern struct {
@@ -77,7 +77,7 @@ pub const vendor_boot_img_hdr_v3 = extern struct {
     name: [VENDOR_BOOT_NAME_SIZE]u8,
     header_size: u32,
     dtb_size: u32,
-    dtb_addr: u64,
+    dtb_addr: [8]u8,
 };
 
 pub const vendor_boot_img_hdr_v4 = extern struct {

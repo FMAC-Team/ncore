@@ -178,11 +178,15 @@ pub fn repack_boot_image(fd: i32, original_buffer: []const u8, unpacked: Unpacke
         null,
         total_size,
         std.posix.PROT.READ | std.posix.PROT.WRITE,
-        .{ .TYPE = .SHARED, .POPULATE = true },
+        .{ .TYPE = .SHARED },
         fd,
         0,
     );
     defer std.posix.munmap(out_buffer);
+
+    if (total_size > 1024 * 1024) {
+        try std.posix.madvise(out_buffer.ptr, total_size, std.posix.MADV.SEQUENTIAL);
+    }
 
     var offset: usize = 0;
 

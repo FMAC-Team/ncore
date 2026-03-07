@@ -11,10 +11,27 @@ fn save(name: []const u8, data: []const u8) !void {
     log.pr_bcyan("[info] ", .{});
     try log.info_f("{s} size: {d} bytes\n", .{ name, data.len });
 
-    const file = try std.fs.cwd().createFile(name, .{});
-    defer file.close();
+    // const file = try std.fs.cwd().createFile(name, .{});
+    //  defer file.close();
+    // try file.writeAll(out);
+    const fd = try std.posix.open(name, .{
+        .ACCMODE = .RDWR,
+        .CREAT = true,
+    }, 0o644);
+    try std.posix.ftruncate(fd, data.len);
+    const out = try std.posix.mmap(
+        null,
+        data.len,
+        std.posix.PROT.WRITE,
+        .{ .TYPE = .SHARED },
+        fd,
+        0,
+    );
+    defer std.posix.munmap(out);
+    defer std.posix.close(fd);
 
-    try file.writeAll(data);
+    if (data.len == 0) return;
+    @memcpy(out[0..data.len], data);
 
     std.debug.print("Saved {s}\n", .{name});
 }
@@ -34,6 +51,8 @@ pub fn unpack_boot(imgfile: []const u8) !void {
         0,
     );
     defer std.posix.munmap(mapped);
+
+    try std.posix.madvise(mapped.ptr, size, std.posix.MADV.SEQUENTIAL);
 
     const unpacked = try ncore.boot.unpack_boot_image(mapped);
 

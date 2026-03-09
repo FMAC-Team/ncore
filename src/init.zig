@@ -4,6 +4,7 @@ const linux = std.os.linux;
 
 const path = @import("path.zig");
 const log = @import("log.zig");
+const perm = @import("permission.zig");
 
 const c = @cImport({
     @cInclude("jni.h");
@@ -162,6 +163,10 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
             init_log();
         } else |_| {
             // TODO
+        }
+
+        if (!perm.check_all_files_permission(env)) {
+            log.info("MANAGE_EXTERNAL_STORAGE not granted\n");
         }
     }
 

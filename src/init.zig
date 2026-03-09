@@ -5,6 +5,7 @@ const linux = std.os.linux;
 const path = @import("path.zig");
 const log = @import("log.zig");
 const perm = @import("permission.zig");
+const devinfo = @import("deviceInfo.zig");
 
 const c = @cImport({
     @cInclude("jni.h");
@@ -18,6 +19,7 @@ const c = @cImport({
     @cInclude("unistd.h");
     @cInclude("sys/uio.h");
     @cInclude("time.h");
+    @cInclude("sys/utsname.h");
 });
 
 pub var app_path: []u8 = &[_]u8{};
@@ -96,6 +98,7 @@ var log_file_fd: i32 = -1;
 fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) void {
     if (log_file_fd == -1) return;
 
+    devinfo.loadDeviceInfo(log_file_fd);
     const msg = log_message.*;
 
     var timer: c.time_t = undefined;
@@ -149,7 +152,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
         log.info("set flags\n");
     }
     set_seccomp() catch |err| {
-        log.info("seccomp failed with error: {s}", .{@errorName(err)});
+        log.info_f("seccomp failed with error: {s}", .{@errorName(err)});
         _ = linux.syscall1(.exit_group, 1);
     };
     if (comptime config.debug) {
@@ -166,7 +169,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
         }
 
         if (!perm.check_all_files_permission(env)) {
-            log.info("MANAGE_EXTERNAL_STORAGE not granted\n");
+            log.info("MANAGE_EXTERNAL_STORAGE not granted");
         }
     }
 

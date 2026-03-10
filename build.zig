@@ -3,6 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) !void {
     const ndk_version = "29.0.14206865";
     const ndk_api = "27";
+    const version = "0.1.1";
     const target = b.standardTargetOptions(.{});
 
     const optimize = b.standardOptimizeOption(.{});
@@ -35,6 +36,12 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         }),
     });
+
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", version);
+
+    exe.root_module.addOptions("build_options", options);
+    lib.root_module.addOptions("build_options", options);
 
     const lib_options = b.addOptions();
     lib_options.addOption(bool, "is_lib", true);

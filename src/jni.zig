@@ -53,5 +53,9 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     };
     log.logToAndroid2(.ERROR, "ctl fd: {d}", .{fd});
     log.logToAndroid2(.ERROR, "ctl result: {d}", .{result});
-    return @truncate(result);
+    if (fd > 0) {
+        return 0;
+    } else {
+        return @truncate(result);
+    }
 }

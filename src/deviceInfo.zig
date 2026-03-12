@@ -1,5 +1,6 @@
 const std = @import("std");
 const linux = std.os.linux;
+const syscall = std.os.linux.syscall3;
 
 const log = @import("log.zig");
 const build_options = @import("build_options");
@@ -46,8 +47,10 @@ fn getPropInfo(fd: i32, tag: []const u8, prop: []const u8) void {
         return;
     }
 
-    if (c.write(fd, tag.ptr, tag.len) < 0)
-        log.info("write prop failed");
+    _ = std.posix.write(fd, tag) catch |err| {
+        log.info_f("write prop failed: {s}", .{@errorName(err)});
+        return;
+    };
 
     if (c.write(fd, @ptrCast(&buf), @intCast(len)) < 0) {
         log.info("write prop failed");

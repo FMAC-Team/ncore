@@ -64,10 +64,12 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     //   } else {
     //    return @truncate(result);
     // }
-    const count = ev.wait() catch |err| {
+    const count = ev.waitWithTimeout(500) catch |err| {
         log.info_f("failed to wait eventfd: {}", .{err});
         return -1;
     };
     log.info_f("finished: {d}\n", .{count});
+    if (count < 0)
+        return -1;
     return 0;
 }

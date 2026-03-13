@@ -68,4 +68,24 @@ pub const Event = struct {
             }
         }
     }
+    pub fn waitWithTimeout(self: Event, timeout_ms: i32) !isize {
+        var pfd = [_]std.posix.pollfd{.{
+            .fd = self.fd,
+            .events = std.posix.POLL.IN,
+            .revents = 0,
+        }};
+
+        const rc = std.posix.poll(&pfd, timeout_ms) catch |err| {
+            log.info_f("failed to poll: {any}", .{@errorName(err)});
+            return -1;
+        };
+        if (rc <= 0) {
+            return -1;
+        }
+
+        var val: u64 = 0;
+        const bytes = try std.posix.read(self.fd, std.mem.asBytes(&val));
+        if (bytes != 8) return error.ReadError;
+        return @bitCast(val);
+    }
 };

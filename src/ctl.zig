@@ -3,7 +3,6 @@ const config = @import("config");
 
 const totp = @import("totp.zig");
 const log = @import("log.zig");
-const syscall = std.os.linux.syscall4;
 const linux = std.os.linux;
 const posix = std.posix;
 
@@ -12,12 +11,21 @@ pub const opcode = enum(u32) {
     getRoot = 2,
 };
 
-fn prctl(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
+fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
         log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}", .{ rop, arg1, arg2, arg3 });
     }
-    const rc = syscall(.prctl, rop, arg1, arg2, arg3);
+    const rc = std.os.linux.syscall4(.prctl, rop, arg1, arg2, arg3);
+    return @bitCast(rc);
+}
+
+fn prctl1(op: u32) !isize {
+    const rop = op + 200;
+    if (comptime config.debug) {
+        log.info_f("op: {d}", .{rop});
+    }
+    const rc = std.os.linux.syscall1(.prctl, rop);
     return @bitCast(rc);
 }
 
@@ -26,11 +34,11 @@ pub fn ctl(code: opcode, fd: usize, eventfd: u32) !isize {
 
     switch (code) {
         opcode.authenticate => {
-            const ret = try prctl(@intFromEnum(opcode.authenticate), totp_key, fd, eventfd);
+            const ret = try prctl4(@intFromEnum(opcode.authenticate), totp_key, fd, eventfd);
             return ret;
         },
         opcode.getRoot => {
-            const ret = try prctl(@intFromEnum(opcode.getRoot), totp_key, fd, eventfd);
+            const ret = try prctl1(@intFromEnum(opcode.getRoot));
             return ret;
         },
     }

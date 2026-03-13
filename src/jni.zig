@@ -12,6 +12,8 @@ const c = @cImport({
 
 const tag = "ncore";
 
+var fd: i32 = -1;
+
 // JNI_OnLoad put on init.zig
 
 export fn Java_me_nekosu_aqnya_ncore_helloLog(
@@ -39,7 +41,9 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     _ = thiz;
     _ = env;
 
-    var fd: i32 = -1;
+    if (fd > -1) {
+        return 0;
+    }
 
     const op: ctl.opcode = switch (value) {
         1 => ctl.opcode.authenticate,
@@ -69,7 +73,8 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
         return -1;
     };
     log.info_f("finished: {d}\n", .{count});
-    if (count < 0)
+    if (count < 0) {
         return -1;
+    }
     return 0;
 }

@@ -262,8 +262,8 @@ fn getRoot(op: ncore.rctl.opcode) !void {
         try log.info_f("ctl error: {any}", .{@errorName(err)});
         return;
     };
-        if (comptime config.debug) {
-    try log.info_f("result: {d}\n", .{result});
+    if (comptime config.debug) {
+        try log.info_f("result: {d}\n", .{result});
     }
     if (std.posix.getuid() != 0) {
         log.pr_bred("error: ", .{});

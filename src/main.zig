@@ -1,7 +1,8 @@
 const std = @import("std");
 const ncore = @import("ncore");
+const config = ncore.config;
 
-const log = @import("log.zig");
+const log = ncore.log;
 
 const exe_name = "ncore";
 
@@ -139,6 +140,8 @@ fn prUsage() !void {
     try log.info("          Unpack boot image.\n");
     log.pr_bcyan("  -r, --replace \n", .{});
     try log.info("          Replace boot image.\n");
+    log.pr_bcyan("  -c, --ctl \n", .{});
+    try log.info("          Run debug ctl cmd.\n");
     try log.info("\n");
 }
 
@@ -156,15 +159,17 @@ const parg = enum {
     help,
     unpackboot,
     replaceboot,
+    ctl,
     unknown,
 
     const meql = std.mem.eql;
     pub fn getcmd(s: []const u8) parg {
         if (meql(u8, s, "--base32") or meql(u8, s, "-b")) return .b32;
-        if (meql(u8, s, "--code") or meql(u8, s, "-c")) return .totp;
+        if (meql(u8, s, "--key") or meql(u8, s, "-k")) return .totp;
         if (meql(u8, s, "--help") or meql(u8, s, "-h")) return .help;
         if (meql(u8, s, "--unpack") or meql(u8, s, "-u")) return .unpackboot;
         if (meql(u8, s, "--replace") or meql(u8, s, "-r")) return .replaceboot;
+        if (meql(u8, s, "--ctl") or meql(u8, s, "-c")) return .ctl;
         return .unknown;
     }
 };
@@ -177,6 +182,12 @@ fn replace_option(op: []const u8) isize {
         return 2;
     }
     return 0;
+}
+
+fn parseOpcode(str: []const u8) !ncore.rctl.opcode {
+    if (std.mem.eql(u8, str, "authenticate")) return .authenticate;
+    if (std.mem.eql(u8, str, "getRoot")) return .getRoot;
+    return error.InvalidOpcode;
 }
 
 pub fn main() !void {
@@ -219,9 +230,86 @@ pub fn main() !void {
             const op = replace_option(args[2]);
             try replaceboot(args[3], args[4], op);
         },
+        .ctl => {
+            if (args.len < 3) {
+                log.pr_bred("error", .{});
+                try log.info(": less argument\n");
+                try log.info_f("try {s} -c [code]\n", .{args[0]});
+                return;
+            }
+            const op = try parseOpcode(args[2]);
+            switch (op) {
+                .authenticate => {
+                    try authenticate(op);
+                },
+                .getRoot => {
+                    try getRoot(op);
+                },
+                .unknown => {
+                    try log.info("unknown code");
+                },
+            }
+        },
         .unknown => {
             log.pr_bred("error", .{});
             try log.info_f(": no such command: `{s}`\n\n", .{args[1]});
         },
+    }
+}
+
+fn getRoot(op: ncore.rctl.opcode) !void {
+    const result: isize = ncore.ctl(op, .{}) catch |err| {
+        try log.info_f("ctl error: {any}", .{@errorName(err)});
+        return;
+    };
+        if (comptime config.debug) {
+    try log.info_f("result: {d}\n", .{result});
+    }
+    if (std.posix.getuid() != 0) {
+        log.pr_bred("error: ", .{});
+        try log.info("Permission denied.\n");
+        return;
+    } else {
+        if (comptime config.debug) {
+            try log.info("success\n");
+        }
+        const path: [*:0]const u8 = "/system/bin/sh";
+        const argv = [_:null]?[*:0]const u8{path};
+
+        const envp = [_:null]?[*:0]const u8{"PATH=/system/bin:/system/xbin"};
+
+        const ret = std.os.linux.execve(path, &argv, &envp);
+
+        const err = std.posix.errno(ret);
+
+        if (err != .SUCCESS) {
+            return std.posix.unexpectedErrno(err);
+        }
+        unreachable;
+    }
+}
+
+fn authenticate(op: ncore.rctl.opcode) !void {
+    var fd: i32 = -1;
+    const ev = ncore.rctl.Event.init() catch |err| {
+        try log.info_f("init eventfd err: {}", .{err});
+        return;
+    };
+    defer ev.deinit();
+
+    const result: isize = ncore.ctl(op, .{
+        .fd = @intFromPtr(&fd),
+        .eventfd = @intCast(ev.fd),
+    }) catch |err| {
+        try log.info_f("ctl error: {any}", .{@errorName(err)});
+        return;
+    };
+    const count = ev.waitWithTimeout(100) catch |err| {
+        try log.info_f("failed to wait eventfd: {}", .{err});
+        return;
+    };
+    try log.info_f("finished: {d}\n", .{count});
+    if (comptime config.debug) {
+        try log.info_f("result: {d}", .{result});
     }
 }

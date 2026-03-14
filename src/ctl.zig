@@ -9,12 +9,22 @@ const posix = std.posix;
 pub const opcode = enum(u32) {
     authenticate = 1,
     getRoot = 2,
+    unknown,
+};
+
+const ctlArgs = struct {
+    fd: usize = 0,
+    eventfd: u32 = 0,
 };
 
 fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
-        log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}", .{ rop, arg1, arg2, arg3 });
+        if (comptime config.is_lib) {
+            log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
+        } else {
+            try log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
+        }
     }
     const rc = std.os.linux.syscall4(.prctl, rop, arg1, arg2, arg3);
     return @bitCast(rc);
@@ -23,23 +33,32 @@ fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
 fn prctl1(op: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
-        log.info_f("op: {d}", .{rop});
+        if (comptime config.is_lib) {
+            log.info_f("op: {d}\n", .{rop});
+        } else {
+            try log.info_f("op: {d}\n", .{rop});
+        }
     }
     const rc = std.os.linux.syscall1(.prctl, rop);
     return @bitCast(rc);
 }
 
-pub fn ctl(code: opcode, fd: usize, eventfd: u32) !isize {
+pub fn ctl(code: opcode, args: ctlArgs) !isize {
     const totp_key = try totp.generateTotp();
 
     switch (code) {
         opcode.authenticate => {
+            const fd = args.fd;
+            const eventfd = args.eventfd;
             const ret = try prctl4(@intFromEnum(opcode.authenticate), totp_key, fd, eventfd);
             return ret;
         },
         opcode.getRoot => {
             const ret = try prctl1(@intFromEnum(opcode.getRoot));
             return ret;
+        },
+        opcode.unknown => {
+            return -1;
         },
     }
 }
@@ -84,7 +103,12 @@ pub const Event = struct {
         }};
 
         const rc = std.posix.poll(&pfd, timeout_ms) catch |err| {
-            log.info_f("failed to poll: {any}", .{@errorName(err)});
+            if (comptime config.is_lib) {
+                log.info_f("failed to poll: {any}", .{@errorName(err)});
+            } else {
+                try log.info_f("failed to poll: {any}", .{@errorName(err)});
+            }
+
             return -1;
         };
         if (rc <= 0) {

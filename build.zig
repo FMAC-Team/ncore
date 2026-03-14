@@ -47,12 +47,10 @@ pub fn build(b: *std.Build) !void {
     lib_options.addOption(bool, "is_lib", true);
     const exe_options = b.addOptions();
     exe_options.addOption(bool, "is_lib", false);
-    lib.root_module.addOptions("config", lib_options);
-
-    exe.root_module.addOptions("config", exe_options);
 
     if (optimize == .Debug) {
         lib_options.addOption(bool, "debug", true);
+        exe_options.addOption(bool, "debug", true);
     }
     if (optimize != .Debug) {
         exe.root_module.strip = true;
@@ -61,7 +59,12 @@ pub fn build(b: *std.Build) !void {
         lib.want_lto = true;
         lib.root_module.strip = true;
         lib_options.addOption(bool, "debug", false);
+        exe_options.addOption(bool, "debug", false);
     }
+
+    lib.root_module.addOptions("config", lib_options);
+    exe.root_module.addOptions("config", exe_options);
+    mod.addOptions("config", exe_options);
 
     if (target.result.abi == .android) {
         const allocator = b.allocator;

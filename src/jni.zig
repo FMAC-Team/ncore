@@ -57,7 +57,10 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     };
     defer ev.deinit();
 
-    const result: isize = ctl.ctl(op, @intFromPtr(&fd), @intCast(ev.fd)) catch |err| {
+    const result: isize = ctl.ctl(op, .{
+        .fd = @intFromPtr(&fd),
+        .eventfd = @intCast(ev.fd),
+    }) catch |err| {
         log.logToAndroid2(.ERROR, "ctl error: {any}", .{@errorName(err)});
         return -1;
     };

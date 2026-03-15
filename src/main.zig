@@ -142,6 +142,8 @@ fn prUsage() !void {
     try log.info("          Replace boot image.\n");
     log.pr_bcyan("  -c, --ctl \n", .{});
     try log.info("          Run debug ctl cmd.\n");
+    log.pr_bcyan("  -l, --load \n", .{});
+    try log.info("          Load kernel module.\n");
     try log.info("\n");
 }
 
@@ -160,6 +162,7 @@ const parg = enum {
     unpackboot,
     replaceboot,
     ctl,
+    load,
     unknown,
 
     const meql = std.mem.eql;
@@ -170,6 +173,7 @@ const parg = enum {
         if (meql(u8, s, "--unpack") or meql(u8, s, "-u")) return .unpackboot;
         if (meql(u8, s, "--replace") or meql(u8, s, "-r")) return .replaceboot;
         if (meql(u8, s, "--ctl") or meql(u8, s, "-c")) return .ctl;
+        if (meql(u8, s, "--load") or meql(u8, s, "-l")) return .load;
         return .unknown;
     }
 };
@@ -248,6 +252,16 @@ pub fn main() !void {
                 .unknown => {
                     try log.info("unknown code");
                 },
+            }
+        },
+        .load => {
+            if (args.len < 3) {
+                log.pr_bred("error", .{});
+                try log.info(": less argument\n");
+                try log.info_f("try {s} -l [path]\n", .{args[0]});
+                return;
+            } else {
+                try ncore.load(allocator, args[2]);
             }
         },
         .unknown => {

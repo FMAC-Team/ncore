@@ -21,7 +21,7 @@ fn parseKallsyms(allocator: std.mem.Allocator) !std.StringHashMap(u64) {
 
     const file = try std.fs.openFileAbsolute("/proc/kallsyms", .{});
     defer file.close();
-    var file_buffer: [4096]u8 = undefined;
+    var file_buffer: [64 * 1024]u8 = undefined;
     var reader = file.reader(&file_buffer);
 
     while (try reader.interface.takeDelimiter('\n')) |line| {

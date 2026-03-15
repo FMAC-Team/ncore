@@ -17,29 +17,41 @@ fn normalizeSymbol(sym: []const u8) []const u8 {
 
 fn parseKallsyms(allocator: std.mem.Allocator) !std.StringHashMap(u64) {
     var map = std.StringHashMap(u64).init(allocator);
+    try map.ensureTotalCapacity(400000);
 
     const file = try std.fs.openFileAbsolute("/proc/kallsyms", .{});
     defer file.close();
-    const content = try file.readToEndAlloc(allocator, 50 * 1024 * 1024);
-    defer allocator.free(content);
+    var file_buffer: [4096]u8 = undefined;
+    var reader = file.reader(&file_buffer);
 
-    var lines = std.mem.splitScalar(u8, content, '\n');
-
-    while (lines.next()) |line| {
+    while (try reader.interface.takeDelimiter('\n')) |line| {
         if (line.len == 0) continue;
 
-        var it = std.mem.splitScalar(u8, line, ' ');
-        const addr_str = it.next() orelse continue;
-        _ = it.next(); // symbol type
-        const name = it.next() orelse continue;
+        const s1 = std.mem.indexOfScalar(u8, line, ' ') orelse continue;
+        const s2 = std.mem.indexOfScalarPos(u8, line, s1 + 1, ' ') orelse continue;
 
-        const addr = std.fmt.parseInt(u64, addr_str, 16) catch continue;
-
+        const addr = hexTou64(line[0..s1]) orelse continue;
+        const name = line[s2 + 1 ..];
         const name_copy = try allocator.dupe(u8, name);
         try map.put(name_copy, addr);
     }
 
     return map;
+}
+
+fn hexTou64(s: []const u8) ?u64 {
+    if (s.len > 16) return null;
+    var v: u64 = 0;
+    for (s) |c| {
+        v <<= 4;
+        v |= switch (c) {
+            '0'...'9' => c - '0',
+            'a'...'f' => c - 'a' + 10,
+            'A'...'F' => c - 'A' + 10,
+            else => return null,
+        };
+    }
+    return v;
 }
 
 fn patch_and_load(
@@ -95,15 +107,21 @@ fn patch_and_load(
                 sym.st_shndx = elf.SHN_ABS;
             } else {
                 std.log.warn("missing symbol: {s}", .{name});
+                std.log.warn("rejection!", .{});
+                return -1;
             }
         }
     }
+    const ret = try loadModule(@intFromPtr(image.ptr), image.len);
+    return ret;
+}
 
+fn loadModule(image_ptr: usize, image_len: usize) !i32 {
     const params: []const u8 = "";
     const ret = std.os.linux.syscall3(
         .init_module,
-        @intFromPtr(image.ptr),
-        image.len,
+        image_ptr,
+        image_len,
         @intFromPtr(params.ptr),
     );
 

@@ -11,10 +11,6 @@ fn save(name: []const u8, data: []const u8) !void {
 
     log.pr_bcyan("[info] ", .{});
     try log.info_f("{s} size: {d} bytes\n", .{ name, data.len });
-
-    // const file = try std.fs.cwd().createFile(name, .{});
-    //  defer file.close();
-    // try file.writeAll(out);
     const fd = try std.posix.open(name, .{
         .ACCMODE = .RDWR,
         .CREAT = true,
@@ -194,6 +190,11 @@ fn parseOpcode(str: []const u8) !ncore.rctl.opcode {
     return error.InvalidOpcode;
 }
 
+fn su_cmd() !void {
+    const code = ncore.rctl.opcode.getRoot;
+    try getRoot(code);
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -201,6 +202,17 @@ pub fn main() !void {
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
+
+    var parts = std.mem.splitScalar(u8, args[0], '/');
+    var last_part: []const u8 = undefined;
+    while (parts.next()) |part| {
+        last_part = part;
+    }
+
+    if (std.mem.eql(u8, last_part, "su")) {
+        try su_cmd();
+        return;
+    }
 
     if (args.len < 2) {
         try prUsage();

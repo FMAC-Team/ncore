@@ -5,6 +5,36 @@ const posix = std.posix;
 
 // logic by kernelsu init
 
+pub const Kptr = struct {
+    var record_Kptr: u8 = undefined;
+    var initialized: bool = false;
+    const path = "/proc/sys/kernel/kptr_restrict";
+
+    fn set(code: u8) !void {
+        const fd = try std.posix.open(path, .{
+            .ACCMODE = .RDWR,
+        }, 0);
+        defer _ = std.posix.close(fd);
+
+        var buf: [1]u8 = undefined;
+        _ = try std.posix.read(fd, &buf);
+        record_Kptr = buf[0];
+        initialized = true;
+        _ = try std.posix.lseek_SET(fd, 0);
+        _ = try std.posix.write(fd, (&code)[0..1]);
+    }
+
+    fn reset() void {
+        if (!initialized) return;
+        const fd = std.posix.open(path, .{
+            .ACCMODE = .WRONLY,
+        }, 0) catch return;
+        defer std.posix.close(fd);
+        const write_buf = [_]u8{record_Kptr};
+        _ = std.posix.write(fd, &write_buf) catch {};
+    }
+};
+
 fn normalizeSymbol(sym: []const u8) []const u8 {
     if (std.mem.indexOf(u8, sym, "$")) |pos| {
         return sym[0..pos];
@@ -18,6 +48,9 @@ fn normalizeSymbol(sym: []const u8) []const u8 {
 fn parseKallsyms(allocator: std.mem.Allocator) !std.StringHashMap(u64) {
     var map = std.StringHashMap(u64).init(allocator);
     try map.ensureTotalCapacity(400000);
+
+    try Kptr.set('1');
+    defer Kptr.reset();
 
     const file = try std.fs.openFileAbsolute("/proc/kallsyms", .{});
     defer file.close();

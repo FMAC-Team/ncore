@@ -71,7 +71,7 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     //   } else {
     //    return @truncate(result);
     // }
-    const count = ev.waitWithTimeout(500) catch |err| {
+    const count = ev.waitWithTimeout(50) catch |err| {
         log.info_f("failed to wait eventfd: {}", .{err});
         return -1;
     };

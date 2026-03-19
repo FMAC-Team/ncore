@@ -5,6 +5,8 @@ const totp = @import("totp.zig");
 const log = @import("log.zig");
 const linux = std.os.linux;
 const posix = std.posix;
+const fs = std.fs;
+const os = std.os;
 
 pub const opcode = enum(u32) {
     authenticate = 1,
@@ -121,3 +123,22 @@ pub const Event = struct {
         return @bitCast(val);
     }
 };
+
+pub fn scanDriverFd() !?std.os.linux.fd_t {
+    var dir = try fs.openDirAbsolute("/proc/self/fd", .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+
+    while (try iter.next()) |entry| {
+        const fd_num = std.fmt.parseInt(i32, entry.name, 10) catch continue;
+
+        var link_buf: [256]u8 = undefined;
+        const target = dir.readLink(entry.name, &link_buf) catch continue;
+
+        if (std.mem.indexOf(u8, target, "[ksu_driver]") != null) {
+            return fd_num;
+        }
+    }
+    return null;
+}

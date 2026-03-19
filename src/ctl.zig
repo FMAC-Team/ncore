@@ -14,11 +14,6 @@ pub const opcode = enum(u32) {
     unknown,
 };
 
-const ctlArgs = struct {
-    fd: usize = 0,
-    eventfd: u32 = 0,
-};
-
 fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
@@ -45,14 +40,25 @@ fn prctl1(op: u32) !isize {
     return @bitCast(rc);
 }
 
-pub fn ctl(code: opcode, args: ctlArgs) !isize {
+fn prctl2(op: u32, arg1: u32) !isize {
+    const rop = op + 200;
+    if (comptime config.debug) {
+        if (comptime config.is_lib) {
+            log.info_f("op: {d} arg1:{d}\n", .{ rop, arg1 });
+        } else {
+            try log.info_f("op: {d} arg1:{d}\n", .{ rop, arg1 });
+        }
+    }
+    const rc = std.os.linux.syscall2(.prctl, rop, arg1);
+    return @bitCast(rc);
+}
+
+pub fn ctl(code: opcode) !isize {
     const totp_key = try totp.generateTotp();
 
     switch (code) {
         opcode.authenticate => {
-            const fd = args.fd;
-            const eventfd = args.eventfd;
-            const ret = try prctl4(@intFromEnum(opcode.authenticate), totp_key, fd, eventfd);
+            const ret = try prctl2(@intFromEnum(opcode.authenticate), totp_key);
             return ret;
         },
         opcode.getRoot => {
@@ -124,7 +130,7 @@ pub const Event = struct {
     }
 };
 
-pub fn scanDriverFd() !?std.os.linux.fd_t {
+pub fn scanDriverFd(fd: *i32) !void {
     var dir = try fs.openDirAbsolute("/proc/self/fd", .{ .iterate = true });
     defer dir.close();
 
@@ -136,9 +142,9 @@ pub fn scanDriverFd() !?std.os.linux.fd_t {
         var link_buf: [256]u8 = undefined;
         const target = dir.readLink(entry.name, &link_buf) catch continue;
 
-        if (std.mem.indexOf(u8, target, "[ksu_driver]") != null) {
-            return fd_num;
+        if (std.mem.indexOf(u8, target, "[fmac_shm]") != null) {
+            fd.* = fd_num;
         }
     }
-    return null;
+    return;
 }

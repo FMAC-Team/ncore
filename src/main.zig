@@ -284,7 +284,7 @@ pub fn main() !void {
 }
 
 fn getRoot(op: ncore.rctl.opcode) !void {
-    const result: isize = ncore.ctl(op, .{}) catch |err| {
+    const result: isize = ncore.ctl(op) catch |err| {
         try log.info_f("ctl error: {any}", .{@errorName(err)});
         return;
     };
@@ -316,25 +316,10 @@ fn getRoot(op: ncore.rctl.opcode) !void {
 }
 
 fn authenticate(op: ncore.rctl.opcode) !void {
-    var fd: i32 = -1;
-    const ev = ncore.rctl.Event.init() catch |err| {
-        try log.info_f("init eventfd err: {}", .{err});
-        return;
-    };
-    defer ev.deinit();
-
-    const result: isize = ncore.ctl(op, .{
-        .fd = @intFromPtr(&fd),
-        .eventfd = @intCast(ev.fd),
-    }) catch |err| {
+    const result: isize = ncore.ctl(op) catch |err| {
         try log.info_f("ctl error: {any}", .{@errorName(err)});
         return;
     };
-    const count = ev.waitWithTimeout(100) catch |err| {
-        try log.info_f("failed to wait eventfd: {}", .{err});
-        return;
-    };
-    try log.info_f("finished: {d}\n", .{count});
     if (comptime config.debug) {
         try log.info_f("result: {d}", .{result});
     }

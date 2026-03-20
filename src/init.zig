@@ -5,7 +5,7 @@ const linux = std.os.linux;
 const path = @import("path.zig");
 const log = @import("log.zig");
 const perm = @import("permission.zig");
-const devinfo = @import("deviceInfo.zig");
+const devinfo = @import("info.zig");
 
 const c = @cImport({
     @cInclude("jni.h");

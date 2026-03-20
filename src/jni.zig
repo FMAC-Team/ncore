@@ -5,6 +5,7 @@ const log = @import("log.zig");
 const totp = @import("totp.zig");
 const ctl = @import("ctl.zig");
 const path = @import("path.zig");
+const info = @import("info.zig");
 
 const c = @cImport({
     @cInclude("jni.h");

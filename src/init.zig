@@ -47,27 +47,127 @@ fn jump(code: u16, k: u32, jt: u8, jf: u8) c.struct_sock_filter {
     };
 }
 
+fn allow(nr: u32) [2]c.struct_sock_filter {
+    return .{
+        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, nr, 0, 1),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+    };
+}
+
 fn set_seccomp() !void {
     var filter = [_]c.struct_sock_filter{
         stmt(c.BPF_LD | c.BPF_W | c.BPF_ABS, @offsetOf(c.struct_seccomp_data, "arch")),
-        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, 0xC00000B7, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, 0xC00000B7, 1, 0), // AUDIT_ARCH_AARCH64
         stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
-
         stmt(c.BPF_LD | c.BPF_W | c.BPF_ABS, @offsetOf(c.struct_seccomp_data, "nr")),
-
-        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.ptrace)), 0, 1),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 435, 0, 1),
         stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
 
-        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.process_vm_readv)), 0, 1),
-        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
-
-        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.process_vm_writev)), 0, 1),
-        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
-
-        jump(c.BPF_JMP | c.BPF_JEQ | c.BPF_K, @intCast(@intFromEnum(linux.SYS.execve)), 0, 1),
-        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
-
+        // [17] getcwd
+    } ++ allow(17) ++ .{
+        // [19] eventfd2
+    } ++ allow(19) ++ .{
+        // [20-22] epoll_create1, epoll_ctl, epoll_pwait
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 20, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 22, 1, 0),
         stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [25] fcntl
+    } ++ allow(25) ++ .{
+        // [29] ioctl
+    } ++ allow(29) ++ .{
+        // [34-35] mkdirat, unlinkat
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 34, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 35, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [38] renameat
+    } ++ allow(38) ++ .{
+        // [43-44] statfs, fstatfs
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 43, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 44, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [46-48] ftruncate, fallocate, faccessat
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 46, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 48, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [53-54] fchmodat, fchownat
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 53, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 54, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [56-57] openat, close
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 56, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 57, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [59] pipe2
+    } ++ allow(59) ++ .{
+        // [61-87] getdents64..timerfd_gettime
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 61, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 87, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+
+        // [90-91] capget, capset
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 90, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 91, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [93-103] exit..getitimer
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 93, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 103, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [113-115] clock_gettime, clock_getres, clock_nanosleep
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 113, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 115, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [119-124] sched_*
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 119, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 124, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [130-135] tkill..rt_sigprocmask
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 130, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 135, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [139] rt_sigreturn
+    } ++ allow(139) ++ .{
+        // [148] getresuid, [150] getresgid
+    } ++ allow(148) ++ allow(150) ++ .{
+        // [160] uname
+    } ++ allow(160) ++ .{
+        // [167] prctl
+    } ++ allow(167) ++ .{
+        // [169] gettimeofday
+    } ++ allow(169) ++ .{
+        // [172] getpid, [174-178] getuid..gettid
+    } ++ allow(172) ++ .{
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 174, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 178, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [194-200] shmget..socket
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 194, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 200, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [201-212] listen..recvmsg
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 201, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 212, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [214-215] brk, munmap
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 214, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 215, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [220] clone, [222] mmap
+    } ++ allow(220) ++ allow(222) ++ .{
+        // [226-227] mprotect, msync
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 226, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 227, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [233] madvise
+    } ++ allow(233) ++ .{
+        // [242] accept4
+    } ++ allow(242) ++ .{
+        // [278-279] getrandom, memfd_create
+        jump(c.BPF_JMP | c.BPF_JGE | c.BPF_K, 278, 1, 0),
+        jump(c.BPF_JMP | c.BPF_JGT | c.BPF_K, 279, 1, 0),
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_ALLOW),
+        // [435] clone3
+    } ++ allow(435) ++ .{
+        stmt(c.BPF_RET | c.BPF_K, c.SECCOMP_RET_KILL_PROCESS),
     };
 
     var prog = c.struct_sock_fprog{
@@ -75,13 +175,11 @@ fn set_seccomp() !void {
         .filter = &filter,
     };
 
-    if (linux.syscall5(.prctl, c.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
+    if (linux.syscall5(.prctl, c.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0)
         return error.PrctlFailed;
-    }
 
-    if (linux.syscall3(.seccomp, c.SECCOMP_SET_MODE_FILTER, c.SECCOMP_FILTER_FLAG_TSYNC, @intFromPtr(&prog)) < 0) {
+    if (linux.syscall3(.seccomp, c.SECCOMP_SET_MODE_FILTER, c.SECCOMP_FILTER_FLAG_TSYNC, @intFromPtr(&prog)) < 0)
         return error.SeccompFailed;
-    }
 }
 
 fn flags_set() void {

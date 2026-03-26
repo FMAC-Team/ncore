@@ -136,6 +136,10 @@ fn patch_and_load(
 
             if (kallsyms.get(name)) |addr| {
                 std.debug.print("Patching symbol {s} -> 0x{x}\n", .{ name, addr });
+                if (addr == 0) {
+                    std.log.err("symbol {s} found but address is 0,rejection!", .{name});
+                    return -1;
+                }
                 sym.st_value = addr;
                 sym.st_shndx = elf.SHN_ABS;
             } else {

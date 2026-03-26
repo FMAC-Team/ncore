@@ -190,11 +190,6 @@ fn parseOpcode(str: []const u8) !ncore.rctl.opcode {
     return error.InvalidOpcode;
 }
 
-fn su_cmd() !void {
-    const code = ncore.rctl.opcode.getRoot;
-    try getRoot(code);
-}
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -210,7 +205,7 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, last_part, "su")) {
-        try su_cmd();
+        try ncore.su.cmd(args);
         return;
     }
 
@@ -259,7 +254,7 @@ pub fn main() !void {
                     try authenticate(op);
                 },
                 .getRoot => {
-                    try getRoot(op);
+                    try ncore.su.getRoot(op);
                 },
                 .unknown => {
                     try log.info("unknown code");
@@ -280,38 +275,6 @@ pub fn main() !void {
             log.pr_bred("error", .{});
             try log.info_f(": no such command: `{s}`\n\n", .{args[1]});
         },
-    }
-}
-
-fn getRoot(op: ncore.rctl.opcode) !void {
-    const result: isize = ncore.ctl(op) catch |err| {
-        try log.info_f("ctl error: {any}", .{@errorName(err)});
-        return;
-    };
-    if (comptime config.debug) {
-        try log.info_f("result: {d}\n", .{result});
-    }
-    if (std.posix.getuid() != 0) {
-        log.pr_bred("error: ", .{});
-        try log.info("Permission denied.\n");
-        return;
-    } else {
-        if (comptime config.debug) {
-            try log.info("success\n");
-        }
-        const path: [*:0]const u8 = "/system/bin/sh";
-        const argv = [_:null]?[*:0]const u8{path};
-
-        const envp = [_:null]?[*:0]const u8{"PATH=/system/bin:/system/xbin"};
-
-        const ret = std.os.linux.execve(path, &argv, &envp);
-
-        const err = std.posix.errno(ret);
-
-        if (err != .SUCCESS) {
-            return std.posix.unexpectedErrno(err);
-        }
-        unreachable;
     }
 }
 

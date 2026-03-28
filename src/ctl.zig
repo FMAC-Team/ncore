@@ -6,68 +6,149 @@ const log = @import("log.zig");
 const linux = std.os.linux;
 const posix = std.posix;
 const fs = std.fs;
-const os = std.os;
 
 pub const opcode = enum(u32) {
     authenticate = 1,
     getRoot = 2,
+    ioctl = 3,
     unknown,
 };
 
-fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
-    const rop = op + 200;
-    if (comptime config.debug) {
-        if (comptime config.is_lib) {
-            log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
-        } else {
-            try log.info_f("op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
-        }
-    }
-    const rc = std.os.linux.syscall4(.prctl, rop, arg1, arg2, arg3);
-    return @bitCast(rc);
+// Linux ioctl code:
+//   bits [7:0]   nr
+//   bits [15:8]  type (magic)
+//   bits [29:16] size
+//   bits [31:30] dir  (00=none, 01=write, 10=read, 11=rw)
+//
+// _IO (dir=00, size=0):  (magic<<8)|nr
+// _IOW(dir=01):          (0x40000000) | (size<<16) | (magic<<8) | nr
+// _IOR(dir=10):          (0x80000000) | (size<<16) | (magic<<8) | nr
+// _IOWR(dir=11):         (0xC0000000) | (size<<16) | (magic<<8) | nr
+
+const MAGIC: u32 = 'F';
+
+fn _IO(nr: u32) u32 {
+    return (MAGIC << 8) | nr;
 }
+fn _IOW(nr: u32, comptime T: type) u32 {
+    return 0x40000000 | (@as(u32, @sizeOf(T)) << 16) | (MAGIC << 8) | nr;
+}
+fn _IOR(nr: u32, comptime T: type) u32 {
+    return 0x80000000 | (@as(u32, @sizeOf(T)) << 16) | (MAGIC << 8) | nr;
+}
+fn _IOWR(nr: u32, comptime T: type) u32 {
+    return 0xC0000000 | (@as(u32, @sizeOf(T)) << 16) | (MAGIC << 8) | nr;
+}
+
+pub const IOC_GET_SHM = _IO(0);
+pub const IOC_BIND_EVT = _IOW(1, u32);
+pub const IOC_CHK_WRITE = _IOR(2, u32);
+pub const IOC_ADD_UID = _IOW(3, u32);
+pub const IOC_DEL_UID = _IOW(4, u32);
+pub const IOC_HAS_UID = _IOWR(5, u32);
 
 fn prctl1(op: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
         if (comptime config.is_lib) {
-            log.info_f("op: {d}\n", .{rop});
+            log.info_f("prctl op: {d}\n", .{rop});
         } else {
-            try log.info_f("op: {d}\n", .{rop});
+            try log.info_f("prctl op: {d}\n", .{rop});
         }
     }
-    const rc = std.os.linux.syscall1(.prctl, rop);
-    return @bitCast(rc);
+    return @bitCast(linux.syscall1(.prctl, rop));
 }
 
 fn prctl2(op: u32, arg1: u32) !isize {
     const rop = op + 200;
     if (comptime config.debug) {
         if (comptime config.is_lib) {
-            log.info_f("op: {d} arg1:{d}\n", .{ rop, arg1 });
+            log.info_f("prctl op: {d} arg1: {d}\n", .{ rop, arg1 });
         } else {
-            try log.info_f("op: {d} arg1:{d}\n", .{ rop, arg1 });
+            try log.info_f("prctl op: {d} arg1: {d}\n", .{ rop, arg1 });
         }
     }
-    const rc = std.os.linux.syscall2(.prctl, rop, arg1);
-    return @bitCast(rc);
+    return @bitCast(linux.syscall2(.prctl, rop, arg1));
+}
+
+fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
+    const rop = op + 200;
+    if (comptime config.debug) {
+        if (comptime config.is_lib) {
+            log.info_f("prctl op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
+        } else {
+            try log.info_f("prctl op: {d} a1: {d} a2: 0x{x} a3: {d}\n", .{ rop, arg1, arg2, arg3 });
+        }
+    }
+    return @bitCast(linux.syscall4(.prctl, rop, arg1, arg2, arg3));
+}
+
+fn ioctl(fd: i32, cmd: u32, arg: usize) !i32 {
+    const rc: isize = @bitCast(linux.syscall3(
+        .ioctl,
+        @as(usize, @bitCast(@as(isize, fd))),
+        cmd,
+        arg,
+    ));
+    if (rc < 0) {
+        const err: posix.E = @enumFromInt(-rc);
+        return posix.unexpectedErrno(err);
+    }
+    return @intCast(rc);
+}
+
+pub fn addUid(fd: i32, uid: i32) !void {
+    if (uid < 0) return error.InvalidUid;
+    var val: u32 = @intCast(uid);
+    _ = try ioctl(fd, IOC_ADD_UID, @intFromPtr(&val));
+}
+
+pub fn delUid(fd: i32, uid: i32) !void {
+    if (uid < 0) return error.InvalidUid;
+    var val: u32 = @intCast(uid);
+    _ = try ioctl(fd, IOC_DEL_UID, @intFromPtr(&val));
+}
+
+pub fn hasUid(fd: i32, uid: i32) !bool {
+    if (uid < 0) return error.InvalidUid;
+    var val: u32 = @intCast(uid);
+    _ = try ioctl(fd, IOC_HAS_UID, @intFromPtr(&val));
+    return val != 0;
 }
 
 pub fn ctl(code: opcode) !isize {
-    const totp_key = try totp.generateTotp();
-
     switch (code) {
-        opcode.authenticate => {
-            const ret = try prctl2(@intFromEnum(opcode.authenticate), totp_key);
-            return ret;
+        .authenticate => {
+            const key = try totp.generateTotp();
+            return prctl2(@intFromEnum(opcode.authenticate), key);
         },
-        opcode.getRoot => {
-            const ret = try prctl1(@intFromEnum(opcode.getRoot));
-            return ret;
-        },
-        opcode.unknown => {
-            return -1;
-        },
+        .getRoot => return prctl1(@intFromEnum(opcode.getRoot)),
+        .ioctl => return prctl1(@intFromEnum(opcode.ioctl)),
+        .unknown => return -1,
+    }
+}
+
+pub fn scanDriverFd(fd: *i32) !void {
+    try scanFdByLink(fd, "[fmac_shm]");
+}
+
+pub fn scanCtlFd(fd: *i32) !void {
+    try scanFdByLink(fd, "[fmac_ctl]");
+}
+
+fn scanFdByLink(fd: *i32, target_link: []const u8) !void {
+    var dir = try fs.openDirAbsolute("/proc/self/fd", .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+    while (try iter.next()) |entry| {
+        const fd_num = std.fmt.parseInt(i32, entry.name, 10) catch continue;
+        var link_buf: [256]u8 = undefined;
+        const target = dir.readLink(entry.name, &link_buf) catch continue;
+        if (std.mem.indexOf(u8, target, target_link) != null) {
+            fd.* = fd_num;
+            return;
+        }
     }
 }
 
@@ -75,8 +156,7 @@ pub const Event = struct {
     fd: i32,
 
     pub fn init() !Event {
-        const fd = try posix.eventfd(0, linux.EFD.CLOEXEC);
-        return .{ .fd = fd };
+        return .{ .fd = try posix.eventfd(0, linux.EFD.CLOEXEC) };
     }
 
     pub fn deinit(self: Event) void {
@@ -91,60 +171,36 @@ pub const Event = struct {
         }};
 
         while (true) {
-            const ready_count = try posix.poll(&poll_fds, -1);
-
-            if (ready_count > 0 and (poll_fds[0].revents & linux.POLL.IN) != 0) {
-                var buffer: [8]u8 = undefined;
-                const bytes_read = try posix.read(self.fd, &buffer);
-
-                if (bytes_read == 8) {
-                    return std.mem.readInt(u64, &buffer, .little);
-                }
+            const ready = try posix.poll(&poll_fds, -1);
+            if (ready > 0 and (poll_fds[0].revents & linux.POLL.IN) != 0) {
+                var buf: [8]u8 = undefined;
+                const n = try posix.read(self.fd, &buf);
+                if (n == 8) return std.mem.readInt(u64, &buf, .little);
             }
         }
     }
+
     pub fn waitWithTimeout(self: Event, timeout_ms: i32) !isize {
-        var pfd = [_]std.posix.pollfd{.{
+        var pfd = [_]posix.pollfd{.{
             .fd = self.fd,
-            .events = std.posix.POLL.IN,
+            .events = posix.POLL.IN,
             .revents = 0,
         }};
 
-        const rc = std.posix.poll(&pfd, timeout_ms) catch |err| {
+        const rc = posix.poll(&pfd, timeout_ms) catch |err| {
             if (comptime config.is_lib) {
-                log.info_f("failed to poll: {any}", .{@errorName(err)});
+                log.info_f("poll error: {any}", .{@errorName(err)});
             } else {
-                try log.info_f("failed to poll: {any}", .{@errorName(err)});
+                try log.info_f("poll error: {any}", .{@errorName(err)});
             }
-
             return -1;
         };
-        if (rc <= 0) {
-            return -1;
-        }
+
+        if (rc <= 0) return -1;
 
         var val: u64 = 0;
-        const bytes = try std.posix.read(self.fd, std.mem.asBytes(&val));
-        if (bytes != 8) return error.ReadError;
+        const n = try posix.read(self.fd, std.mem.asBytes(&val));
+        if (n != 8) return error.ReadError;
         return @bitCast(val);
     }
 };
-
-pub fn scanDriverFd(fd: *i32) !void {
-    var dir = try fs.openDirAbsolute("/proc/self/fd", .{ .iterate = true });
-    defer dir.close();
-
-    var iter = dir.iterate();
-
-    while (try iter.next()) |entry| {
-        const fd_num = std.fmt.parseInt(i32, entry.name, 10) catch continue;
-
-        var link_buf: [256]u8 = undefined;
-        const target = dir.readLink(entry.name, &link_buf) catch continue;
-
-        if (std.mem.indexOf(u8, target, "[fmac_shm]") != null) {
-            fd.* = fd_num;
-        }
-    }
-    return;
-}

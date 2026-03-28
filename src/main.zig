@@ -256,6 +256,9 @@ pub fn main() !void {
                 .getRoot => {
                     try ncore.su.getRoot(op);
                 },
+                .ioctl => {
+                    try log.info("don't support get ioctl fd on cli");
+                },
                 .unknown => {
                     try log.info("unknown code");
                 },

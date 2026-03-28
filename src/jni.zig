@@ -14,6 +14,7 @@ const c = @cImport({
 const tag = "ncore";
 
 var fd: i32 = -1;
+var ctlfd: i32 = -1;
 
 // JNI_OnLoad put on init.zig
 
@@ -42,13 +43,10 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
     _ = thiz;
     _ = env;
 
-    if (fd > -1) {
-        return 0;
-    }
-
     const op: ctl.opcode = switch (value) {
         1 => ctl.opcode.authenticate,
         2 => ctl.opcode.getRoot,
+        3 => ctl.opcode.ioctl,
         else => return -1,
     };
 
@@ -56,18 +54,34 @@ export fn Java_me_nekosu_aqnya_ncore_ctl(
         log.logToAndroid2(.ERROR, "ctl error: {any}", .{@errorName(err)});
         return -1;
     };
-    ctl.scanDriverFd(&fd) catch |err| {
-        log.info_f("fail to scan fd:{}", .{err});
-    };
+    if (value == 1) {
+        ctl.scanDriverFd(&fd) catch |err| {
+            log.info_f("fail to scan fd:{}", .{err});
+        };
+    }
+    if (value == 3) {
+        ctl.scanCtlFd(&ctlfd) catch |err| {
+            log.info_f("fail to scan fd:{}", .{err});
+        };
+    }
     log.logToAndroid2(.INFO, "ctl fd: {d}", .{fd});
     log.logToAndroid2(.INFO, "ctl result: {d}", .{result});
-    //   if (fd > 0) {
-    //       return 0;
-    //   } else {
-    //    return @truncate(result);
-    // }
     if (fd < 0) {
         return -1;
     }
+    return 0;
+}
+
+export fn Java_me_nekosu_aqnya_ncore_adduid(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    value: c.jint,
+) callconv(.c) c.jint {
+    _ = thiz;
+    _ = env;
+    ctl.addUid(ctlfd, value) catch |err| {
+        log.info_f("adduid failed:{}", .{err});
+        return -1;
+    };
     return 0;
 }

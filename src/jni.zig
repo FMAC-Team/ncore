@@ -85,3 +85,31 @@ export fn Java_me_nekosu_aqnya_ncore_adduid(
     };
     return 0;
 }
+
+export fn Java_me_nekosu_aqnya_ncore_deluid(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    value: c.jint,
+) callconv(.c) c.jint {
+    _ = thiz;
+    _ = env;
+    ctl.delUid(ctlfd, value) catch |err| {
+        log.info_f("deluid failed:{}", .{err});
+        return -1;
+    };
+    return 0;
+}
+
+export fn Java_me_nekosu_aqnya_ncore_hasuid(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    value: c.jint,
+) callconv(.c) c.jint {
+    _ = thiz;
+    _ = env;
+    if (ctl.hasUid(ctlfd, value)) |has| {
+        return if (has) 1 else 0;
+    } else |_| {
+        return -1;
+    }
+}

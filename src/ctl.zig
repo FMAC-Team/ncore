@@ -14,16 +14,10 @@ pub const opcode = enum(u32) {
     unknown,
 };
 
-// Linux ioctl code:
-//   bits [7:0]   nr
-//   bits [15:8]  type (magic)
-//   bits [29:16] size
-//   bits [31:30] dir  (00=none, 01=write, 10=read, 11=rw)
-//
-// _IO (dir=00, size=0):  (magic<<8)|nr
-// _IOW(dir=01):          (0x40000000) | (size<<16) | (magic<<8) | nr
-// _IOR(dir=10):          (0x80000000) | (size<<16) | (magic<<8) | nr
-// _IOWR(dir=11):         (0xC0000000) | (size<<16) | (magic<<8) | nr
+pub const FmacRule = extern struct {
+    path: [1024]u8,
+    status_bits: u64,
+};
 
 const MAGIC: u32 = 'F';
 
@@ -46,6 +40,8 @@ pub const IOC_CHK_WRITE = _IOR(2, u32);
 pub const IOC_ADD_UID = _IOW(3, u32);
 pub const IOC_DEL_UID = _IOW(4, u32);
 pub const IOC_HAS_UID = _IOWR(5, u32);
+pub const IOC_ADD_RULE = _IOW(6, FmacRule);
+pub const IOC_DEL_RULE = _IOW(7, FmacRule);
 
 fn prctl1(op: u32) !isize {
     const rop = op + 200;
@@ -91,6 +87,7 @@ fn ioctl(fd: i32, cmd: u32, arg: usize) !i32 {
         arg,
     ));
     if (rc < 0) {
+        log.info_f("ioctl errno={d}", .{-rc});
         const err: posix.E = @enumFromInt(-rc);
         return posix.unexpectedErrno(err);
     }
@@ -114,6 +111,21 @@ pub fn hasUid(fd: i32, uid: i32) !bool {
     var val: u32 = @intCast(uid);
     _ = try ioctl(fd, IOC_HAS_UID, @intFromPtr(&val));
     return val != 0;
+}
+
+pub fn addRule(fd: i32, path: []const u8, status_bits: u64) !void {
+    var rule = std.mem.zeroes(FmacRule);
+    const copy_len = @min(path.len, rule.path.len - 1);
+    @memcpy(rule.path[0..copy_len], path[0..copy_len]);
+    rule.status_bits = status_bits;
+    _ = try ioctl(fd, IOC_ADD_RULE, @intFromPtr(&rule));
+}
+
+pub fn delRule(fd: i32, path: []const u8) !void {
+    var rule = std.mem.zeroes(FmacRule);
+    const copy_len = @min(path.len, rule.path.len - 1);
+    @memcpy(rule.path[0..copy_len], path[0..copy_len]);
+    _ = try ioctl(fd, IOC_DEL_RULE, @intFromPtr(&rule));
 }
 
 pub fn ctl(code: opcode) !isize {

@@ -68,7 +68,7 @@ pub fn load_key_from_keyutils(
     if (mid == null) return error.MethodNotFound;
 
     const result = iface.CallObjectMethod.?(env, instance, mid, context);
-    
+
     if (iface.ExceptionCheck.?(env) != 0) {
         iface.ExceptionClear.?(env);
         return error.JavaException;
@@ -87,7 +87,7 @@ pub fn load_key_from_keyutils(
         32,
         @ptrCast(key_out),
     );
-    
+
     if (iface.ExceptionCheck.?(env) != 0) {
         iface.ExceptionClear.?(env);
         key_out.* = std.mem.zeroes([32]u8);

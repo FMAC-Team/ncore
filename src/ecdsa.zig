@@ -7,9 +7,10 @@ const jreflect = @import("jreflect.zig");
 pub fn sign(
     message: []const u8,
     out_der: *[72]u8,
-)  !usize  {
+) !usize {
     var key: [32]u8 = undefined;
     try jreflect.load_key_from_keyutils(&key);
+    defer key = std.mem.zeroes([32]u8);
     const secret_key = try Ecdsa.SecretKey.fromBytes(key);
     const kp = try Ecdsa.KeyPair.fromSecretKey(secret_key);
     const sig = try kp.sign(message, null);

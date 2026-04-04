@@ -2,8 +2,10 @@ const std = @import("std");
 const config = @import("config");
 const linux = std.os.linux;
 
-const path = @import("path.zig");
+const path = @import("jreflect.zig");
+const jreflect = path;
 const log = @import("log.zig");
+const necd = @import("ecdsa.zig");
 const perm = @import("permission.zig");
 const devinfo = @import("info.zig");
 
@@ -22,7 +24,6 @@ const c = @cImport({
     @cInclude("sys/utsname.h");
 });
 
-pub var app_path: []u8 = &[_]u8{};
 var jvm: *c.JavaVM = undefined;
 
 fn ok(rc: usize) bool {
@@ -228,9 +229,9 @@ fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) vo
     c.__android_log_logd_logger(log_message);
 }
 
-fn init_log() void {
+fn init_log(data_path: []const u8) void {
     var path_buf: [512]u8 = undefined;
-    const log_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{app_path}) catch {
+    const log_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{data_path}) catch {
         return;
     };
 
@@ -259,9 +260,17 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
 
     var env: *c.JNIEnv = undefined;
     if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), c.JNI_VERSION_1_6) == c.JNI_OK) {
+        jreflect.savejrt(env) catch |err| {
+            log.info_f("failed to save jrt:{}", .{err});
+        };
         if (path.fetchPathFromSystem(env)) |p| {
-            app_path = p;
-            init_log();
+            log.info_f("p:{}", .{p});
+            init_log(p);
+            if (comptime config.debug) {
+                necd.tecd() catch |err| {
+                    log.info_f("failed to test sign:{}", .{err});
+                };
+            }
         } else |_| {
             // TODO
         }

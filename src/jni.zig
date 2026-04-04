@@ -7,6 +7,10 @@ const ctl = @import("ctl.zig");
 const path = @import("jreflect.zig");
 const info = @import("info.zig");
 
+comptime {
+    _ = @import("init.zig");
+}
+
 const c = @cImport({
     @cInclude("jni.h");
 });

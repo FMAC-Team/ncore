@@ -45,24 +45,21 @@ pub fn load_key_from_keyutils(
 ) !void {
     const context = app_context;
     const env = JniEnv;
-    const iface = env.*.*.?;
+    const iface = env.*.*;
 
-    const cls = iface.FindClass(env, "me/nekosu/aqnya/KeyUtils");
-    if (cls == null) return error.ClassNotFound;
-    defer iface.DeleteLocalRef(env, cls);
+    const cls = iface.FindClass.?(env, "me/nekosu/aqnya/KeyUtils") orelse return error.ClassNotFound;
+    defer iface.DeleteLocalRef.?(env, cls);
 
-    const instance_fid = iface.GetStaticFieldID(
+    const instance_fid = iface.GetStaticFieldID.?(
         env,
         cls,
         "INSTANCE",
         "Lme/nekosu/aqnya/KeyUtils;",
-    );
-    if (instance_fid == null) return error.FieldNotFound;
-    const instance = iface.GetStaticObjectField(env, cls, instance_fid);
-    if (instance == null) return error.InstanceNull;
-    defer iface.DeleteLocalRef(env, instance);
+    ) orelse return error.FieldNotFound;
+    const instance = iface.GetStaticObjectField.?(env, cls, instance_fid) orelse return error.InstanceNull;
+    defer iface.DeleteLocalRef.?(env, instance);
 
-    const mid = iface.GetMethodID(
+    const mid = iface.GetMethodID.?(
         env,
         cls,
         "loadKeyBytes",
@@ -70,27 +67,29 @@ pub fn load_key_from_keyutils(
     );
     if (mid == null) return error.MethodNotFound;
 
-    const result = iface.CallObjectMethod(env, instance, mid, context);
-    if (iface.ExceptionCheck(env) != 0) {
-        iface.ExceptionClear(env);
+    const result = iface.CallObjectMethod.?(env, instance, mid, context);
+    
+    if (iface.ExceptionCheck.?(env) != 0) {
+        iface.ExceptionClear.?(env);
         return error.JavaException;
     }
     if (result == null) return error.KeyNotFound;
-    defer iface.DeleteLocalRef(env, result);
+    defer iface.DeleteLocalRef.?(env, result);
 
     const jba: jni.jbyteArray = @ptrCast(result);
-    const len: usize = @intCast(iface.GetArrayLength(env, jba));
+    const len: usize = @intCast(iface.GetArrayLength.?(env, jba));
     if (len < 32) return error.KeyTooShort;
 
-    iface.GetByteArrayRegion(
+    iface.GetByteArrayRegion.?(
         env,
         jba,
         0,
         32,
         @ptrCast(key_out),
     );
-    if (iface.ExceptionCheck(env) != 0) {
-        iface.ExceptionClear(env);
+    
+    if (iface.ExceptionCheck.?(env) != 0) {
+        iface.ExceptionClear.?(env);
         key_out.* = std.mem.zeroes([32]u8);
         return error.CopyFailed;
     }

@@ -262,17 +262,12 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), c.JNI_VERSION_1_6) == c.JNI_OK) {
         jreflect.savejrt(env) catch |err| {
             log.info_f("failed to save jrt:{}", .{err});
+            @panic("jrt was necessary");
         };
-        if (path.fetchPathFromSystem(env)) |p| {
-            log.info_f("p:{}", .{p});
-            init_log(p);
-            if (comptime config.debug) {
-                necd.tecd() catch |err| {
-                    log.info_f("failed to test sign:{}", .{err});
-                };
-            }
+        if (path.fetchPathFromSystem(env)) |data_path| {
+            init_log(data_path);
         } else |_| {
-            // TODO
+            @panic("failed to fetch data path!");
         }
 
         if (!perm.check_all_files_permission(env)) {

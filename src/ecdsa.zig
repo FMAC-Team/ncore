@@ -7,20 +7,13 @@ const jreflect = @import("jreflect.zig");
 pub fn sign(
     message: []const u8,
     out_der: *[72]u8,
-) !void {
-    const key: u8[32] = undefined;
-    try jreflect.load_key_from_keyutils(key);
+)  !usize  {
+    var key: [32]u8 = undefined;
+    try jreflect.load_key_from_keyutils(&key);
     const secret_key = try Ecdsa.SecretKey.fromBytes(key);
     const kp = try Ecdsa.KeyPair.fromSecretKey(secret_key);
     const sig = try kp.sign(message, null);
     return rs_to_der(&sig.toBytes(), out_der);
-}
-
-pub fn tecd() !void {
-    var der: [72]u8 = undefined;
-    const len = try sign("ncore auth challenge", &der);
-
-    log.info_f("sig_der ({d} bytes):\n{x:0>2}", .{ len, std.fmt.fmtSliceHexLower(der[0..len]) });
 }
 
 fn rs_to_der(rs: *const [64]u8, out: *[72]u8) !usize {

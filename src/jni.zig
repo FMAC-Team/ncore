@@ -240,7 +240,7 @@ fn init_log(data_path: []const u8) void {
     };
 
     const lfd = c.open(log_path.ptr, c.O_CREAT | c.O_WRONLY | c.O_TRUNC | c.O_CLOEXEC, @as(c_int, 0o666));
-    if (fd >= 0) {
+    if (lfd >= 0) {
         logfd = lfd;
         c.__android_log_set_logger(custom_logger);
     }

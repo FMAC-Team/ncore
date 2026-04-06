@@ -6,21 +6,47 @@ const totp = @import("totp.zig");
 const ctl = @import("ctl.zig");
 const path = @import("jreflect.zig");
 const info = @import("info.zig");
-
-comptime {
-    _ = @import("init.zig");
-}
+const perm = @import("permission.zig");
+const devinfo = info;
+const jreflect = path;
 
 const c = @cImport({
     @cInclude("jni.h");
+    @cInclude("fcntl.h");
+    @cInclude("android/log.h");
+    @cInclude("time.h");
+    @cInclude("sys/uio.h");
 });
 
 const tag = "ncore";
+var jvm: *c.JavaVM = undefined;
 
 var fd: i32 = -1;
 var ctlfd: i32 = -1;
 
-// JNI_OnLoad put on init.zig
+export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
+    _ = reserved;
+    jvm = vm;
+
+    var env: *c.JNIEnv = undefined;
+    if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), c.JNI_VERSION_1_6) == c.JNI_OK) {
+        jreflect.savejrt(env) catch |err| {
+            log.info_f("failed to save jrt:{}", .{err});
+            @panic("jrt was necessary");
+        };
+        if (path.fetchPathFromSystem(env)) |data_path| {
+            init_log(data_path);
+        } else |_| {
+            @panic("failed to fetch data path!");
+        }
+
+        if (!perm.check_all_files_permission(env)) {
+            log.info("MANAGE_EXTERNAL_STORAGE not granted");
+        }
+    }
+
+    return c.JNI_VERSION_1_6;
+}
 
 export fn Java_me_nekosu_aqnya_ncore_helloLog(
     env: *c.JNIEnv,
@@ -168,4 +194,54 @@ export fn Java_me_nekosu_aqnya_ncore_delRule(
         return -1;
     };
     return 0;
+}
+
+fn custom_logger(log_message: [*c]const c.__android_log_message) callconv(.c) void {
+    if (logfd == -1) return;
+
+    devinfo.loadDeviceInfo(logfd);
+    const msg = log_message.*;
+
+    var timer: c.time_t = undefined;
+    var now: c.struct_tm = undefined;
+    _ = c.time(&timer);
+    _ = c.localtime_r(&timer, &now);
+
+    var time_buf: [32]u8 = undefined; // "HH:MM:SS"
+    const time = std.fmt.bufPrint(
+        &time_buf,
+        "[{d:0>4}/{d:0>2}/{d:0>2} {:0>2}:{:0>2}:{:0>2}]",
+        .{ @as(u32, @intCast(now.tm_year + 1900)), @as(u32, @intCast(now.tm_mon + 1)), @as(u32, @intCast(now.tm_mday)), @as(u8, @intCast(now.tm_hour)), @as(u8, @intCast(now.tm_min)), @as(u8, @intCast(now.tm_sec)) },
+    ) catch |err| {
+        log.logToAndroid2(.ERROR, "format time failed: {}", .{err});
+        return;
+    };
+
+    var iovecs = [_]c.struct_iovec{
+        .{ .iov_base = @constCast(time.ptr), .iov_len = time.len },
+        .{ .iov_base = @constCast(" ".ptr), .iov_len = 1 },
+        .{ .iov_base = @constCast(msg.tag), .iov_len = @intCast(std.mem.len(msg.tag)) },
+        .{ .iov_base = @constCast(": ".ptr), .iov_len = 2 },
+        .{ .iov_base = @constCast(msg.message), .iov_len = @intCast(std.mem.len(msg.message)) },
+        .{ .iov_base = @constCast("\n".ptr), .iov_len = 1 },
+    };
+
+    _ = c.writev(logfd, &iovecs, iovecs.len);
+
+    c.__android_log_logd_logger(log_message);
+}
+
+var logfd: i32 = undefined;
+
+fn init_log(data_path: []const u8) void {
+    var path_buf: [512]u8 = undefined;
+    const log_path = std.fmt.bufPrintZ(&path_buf, "{s}/debug.log", .{data_path}) catch {
+        return;
+    };
+
+    const lfd = c.open(log_path.ptr, c.O_CREAT | c.O_WRONLY | c.O_TRUNC | c.O_CLOEXEC, @as(c_int, 0o666));
+    if (fd >= 0) {
+        logfd = lfd;
+        c.__android_log_set_logger(custom_logger);
+    }
 }

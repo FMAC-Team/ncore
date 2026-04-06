@@ -37,11 +37,22 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
+    const libinit = b.addLibrary(.{
+        .name = "ncore_init",
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/init.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const options = b.addOptions();
     options.addOption([]const u8, "version", version);
 
     exe.root_module.addOptions("build_options", options);
     lib.root_module.addOptions("build_options", options);
+    libinit.root_module.addOptions("build_options", options);
 
     const lib_options = b.addOptions();
     lib_options.addOption(bool, "is_lib", true);
@@ -58,11 +69,15 @@ pub fn build(b: *std.Build) !void {
         exe.want_lto = true;
         lib.want_lto = true;
         lib.root_module.strip = true;
+        libinit.want_lto = true;
+        libinit.root_module.strip = true;
         lib_options.addOption(bool, "debug", false);
+
         exe_options.addOption(bool, "debug", false);
     }
 
     lib.root_module.addOptions("config", lib_options);
+    libinit.root_module.addOptions("config", lib_options);
     exe.root_module.addOptions("config", exe_options);
     mod.addOptions("config", exe_options);
 
@@ -85,6 +100,10 @@ pub fn build(b: *std.Build) !void {
         lib.addIncludePath(.{ .cwd_relative = arch_include });
         lib.addLibraryPath(.{ .cwd_relative = libpath });
 
+        libinit.addIncludePath(.{ .cwd_relative = include });
+        libinit.addIncludePath(.{ .cwd_relative = arch_include });
+        libinit.addLibraryPath(.{ .cwd_relative = libpath });
+
         const libc_content = b.fmt(
             \\include_dir={s}
             \\sys_include_dir={s}
@@ -98,10 +117,14 @@ pub fn build(b: *std.Build) !void {
         lib.setLibCFile(libc_path);
         lib.linkSystemLibrary("log");
         lib.linkSystemLibrary("c");
+        libinit.setLibCFile(libc_path);
+        libinit.linkSystemLibrary("log");
+        libinit.linkSystemLibrary("c");
     }
 
     b.installArtifact(exe);
     b.installArtifact(lib);
+    b.installArtifact(libinit);
 
     const run_step = b.step("run", "Run the app");
 

@@ -1,20 +1,33 @@
 const std = @import("std");
+const config = @import("config");
 const Ecdsa = std.crypto.sign.ecdsa.EcdsaP256Sha256;
 
 const log = @import("log.zig");
 const jreflect = @import("jreflect.zig");
 
+var no_key: bool = false;
+
 pub fn sign(
     message: []const u8,
     out_der: *[72]u8,
 ) !usize {
-    var key: [32]u8 = undefined;
-    try jreflect.load_key_from_keyutils(&key);
-    defer key = std.mem.zeroes([32]u8);
-    const secret_key = try Ecdsa.SecretKey.fromBytes(key);
-    const kp = try Ecdsa.KeyPair.fromSecretKey(secret_key);
-    const sig = try kp.sign(message, null);
-    return rs_to_der(&sig.toBytes(), out_der);
+    if (!no_key) {
+        var key: [32]u8 = undefined;
+        jreflect.load_key_from_keyutils(&key) catch |err| {
+            if (comptime config.is_lib) {
+                log.info_f("{}", .{err});
+            } else {
+                try log.info_f("{}", .{err});
+            }
+            no_key = true;
+        };
+        defer key = std.mem.zeroes([32]u8);
+        const secret_key = try Ecdsa.SecretKey.fromBytes(key);
+        const kp = try Ecdsa.KeyPair.fromSecretKey(secret_key);
+        const sig = try kp.sign(message, null);
+        return rs_to_der(&sig.toBytes(), out_der);
+    }
+    return 0;
 }
 
 fn rs_to_der(rs: *const [64]u8, out: *[72]u8) !usize {

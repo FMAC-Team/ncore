@@ -34,7 +34,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
             log.info_f("failed to save jrt:{}", .{err});
             @panic("jrt was necessary");
         };
-        if (path.fetchPathFromSystem(env)) |data_path| {
+        if (path.fetchPathFromSystem()) |data_path| {
             init_log(data_path);
         } else |_| {
             @panic("failed to fetch data path!");

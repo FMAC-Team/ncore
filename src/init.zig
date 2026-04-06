@@ -170,10 +170,10 @@ fn set_seccomp() !void {
         .filter = &filter,
     };
 
-    if (linux.syscall5(.prctl, c.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0)
+    if (!ok(linux.syscall5(.prctl, c.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)))
         return error.PrctlFailed;
 
-    if (linux.syscall3(.seccomp, c.SECCOMP_SET_MODE_FILTER, c.SECCOMP_FILTER_FLAG_TSYNC, @intFromPtr(&prog)) < 0)
+    if (!ok(linux.syscall3(.seccomp, c.SECCOMP_SET_MODE_FILTER, c.SECCOMP_FILTER_FLAG_TSYNC, @intFromPtr(&prog))))
         return error.SeccompFailed;
 }
 

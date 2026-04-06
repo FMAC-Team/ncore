@@ -3,6 +3,7 @@ const config = @import("config");
 
 const totp = @import("totp.zig");
 const log = @import("log.zig");
+const ncrypto = @import("ecdsa.zig");
 const linux = std.os.linux;
 const posix = std.posix;
 const fs = std.fs;
@@ -65,6 +66,18 @@ fn prctl2(op: u32, arg1: u32) !isize {
         }
     }
     return @bitCast(linux.syscall2(.prctl, rop, arg1));
+}
+
+fn prctl3(op: u32, arg1: u32, arg2: usize) !isize {
+    const rop = op + 200;
+    if (comptime config.debug) {
+        if (comptime config.is_lib) {
+            log.info_f("prctl op: {d} arg1: {d}\n", .{ rop, arg1 });
+        } else {
+            try log.info_f("prctl op: {d} arg1: {d}\n", .{ rop, arg1 });
+        }
+    }
+    return @bitCast(linux.syscall3(.prctl, rop, arg1, arg2));
 }
 
 fn prctl4(op: u32, arg1: u32, arg2: usize, arg3: u32) !isize {
@@ -131,8 +144,18 @@ pub fn delRule(fd: i32, path: []const u8) !void {
 pub fn ctl(code: opcode) !isize {
     switch (code) {
         .authenticate => {
+            var sign_buf: [72]u8 = undefined;
+
             const key = try totp.generateTotp();
-            return prctl2(@intFromEnum(opcode.authenticate), key);
+            const key_bytes = std.mem.asBytes(&key);
+            _ = ncrypto.sign(key_bytes, &sign_buf) catch |err| {
+                if (comptime config.is_lib) {
+                    log.info_f("failed to sign key:{}", .{err});
+                } else {
+                    try log.info_f("failed to sign key:{}", .{err});
+                }
+            };
+            return prctl3(@intFromEnum(opcode.authenticate), key, @intFromPtr(&sign_buf));
         },
         .getRoot => return prctl1(@intFromEnum(opcode.getRoot)),
         .ioctl => return prctl1(@intFromEnum(opcode.ioctl)),

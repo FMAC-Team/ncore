@@ -1,6 +1,7 @@
 const std = @import("std");
 const linux = std.os.linux;
 const syscall = std.os.linux.syscall3;
+const posix = std.posix;
 
 const log = @import("log.zig");
 const build_options = @import("build_options");
@@ -28,6 +29,7 @@ pub fn loadDeviceInfo(fd: i32) void {
     getPropInfo(fd, "Product name: ", "ro.product.odm.name");
     getPropInfo(fd, "Android version: ", "ro.build.version.release");
     _ = c.write(fd, buf.ptr, buf.len);
+    get_selinux_status(fd);
     _ = c.write(fd, departline.ptr, departline.len);
     std.heap.page_allocator.free(buf);
     loadinfo = true;
@@ -81,4 +83,28 @@ fn getUnameInfo() !c.struct_utsname {
     }
 
     return u;
+}
+
+fn get_selinux_status(fd: i32) void {
+    const path = "/sys/fs/selinux/enforce";
+
+    const file_fd = posix.open(path, .{ .ACCMODE = .RDONLY }, 0) catch {
+        _ = posix.write(fd, "selinux   : enforcing\n") catch {};
+        return;
+    };
+    defer posix.close(file_fd);
+
+    var buf: [1]u8 = undefined;
+    const bytes_read = posix.read(file_fd, &buf) catch 0;
+
+    if (bytes_read == 0) {
+        _ = posix.write(fd, "  selinux   : unknown (read error)\n") catch {};
+    } else {
+        const status_msg = if (buf[0] == '1')
+            "selinux   : enforcing\n"
+        else
+            "selinux   : permissive\n";
+
+        _ = posix.write(fd, status_msg) catch {};
+    }
 }

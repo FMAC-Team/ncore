@@ -48,6 +48,55 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     return c.JNI_VERSION_1_6;
 }
 
+export fn Java_me_nekosu_aqnya_ncore_setCap(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    uid: c.jint,
+    caps: c.jlong,
+) callconv(.c) c.jint {
+    _ = thiz;
+    _ = env;
+
+    if (uid < 0) return -1;
+    ctl.setCap(ctlfd, @intCast(uid), @bitCast(caps)) catch |err| {
+        log.info_f("setCap failed:{}", .{err});
+        return -1;
+    };
+    return 0;
+}
+
+export fn Java_me_nekosu_aqnya_ncore_getCap(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    uid: c.jint,
+) callconv(.c) c.jlong {
+    _ = thiz;
+    _ = env;
+
+    if (uid < 0) return -1;
+    const caps = ctl.getCap(ctlfd, @intCast(uid)) catch |err| {
+        log.info_f("getCap failed:{}", .{err});
+        return -1;
+    };
+    return @bitCast(caps);
+}
+
+export fn Java_me_nekosu_aqnya_ncore_delCap(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    uid: c.jint,
+) callconv(.c) c.jint {
+    _ = thiz;
+    _ = env;
+
+    if (uid < 0) return -1;
+    ctl.delCap(ctlfd, @intCast(uid)) catch |err| {
+        log.info_f("delCap failed:{}", .{err});
+        return -1;
+    };
+    return 0;
+}
+
 export fn Java_me_nekosu_aqnya_ncore_helloLog(
     env: *c.JNIEnv,
     thiz: c.jobject,

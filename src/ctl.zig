@@ -20,6 +20,11 @@ pub const FmacRule = extern struct {
     status_bits: u64,
 };
 
+pub const FmacUidCap = extern struct {
+    uid: u32,
+    caps: u64,
+};
+
 const MAGIC: u32 = 'F';
 
 fn _IO(nr: u32) u32 {
@@ -43,6 +48,9 @@ pub const IOC_DEL_UID = _IOW(4, u32);
 pub const IOC_HAS_UID = _IOWR(5, u32);
 pub const IOC_ADD_RULE = _IOW(6, FmacRule);
 pub const IOC_DEL_RULE = _IOW(7, FmacRule);
+pub const IOC_SET_CAP = _IOW(8, FmacUidCap);
+pub const IOC_GET_CAP = _IOWR(9, FmacUidCap);
+pub const IOC_DEL_CAP = _IOW(10, FmacUidCap);
 
 fn prctl1(op: u32) !isize {
     const rop = op + 200;
@@ -139,6 +147,22 @@ pub fn delRule(fd: i32, path: []const u8) !void {
     const copy_len = @min(path.len, rule.path.len - 1);
     @memcpy(rule.path[0..copy_len], path[0..copy_len]);
     _ = try ioctl(fd, IOC_DEL_RULE, @intFromPtr(&rule));
+}
+
+pub fn setCap(fd: i32, uid: u32, caps: u64) !void {
+    var uc = FmacUidCap{ .uid = uid, .caps = caps };
+    _ = try ioctl(fd, IOC_SET_CAP, @intFromPtr(&uc));
+}
+
+pub fn getCap(fd: i32, uid: u32) !u64 {
+    var uc = FmacUidCap{ .uid = uid, .caps = 0 };
+    _ = try ioctl(fd, IOC_GET_CAP, @intFromPtr(&uc));
+    return uc.caps;
+}
+
+pub fn delCap(fd: i32, uid: u32) !void {
+    var uc = FmacUidCap{ .uid = uid, .caps = 0 };
+    _ = try ioctl(fd, IOC_DEL_CAP, @intFromPtr(&uc));
 }
 
 pub fn ctl(code: opcode) !isize {

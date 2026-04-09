@@ -199,7 +199,9 @@ export fn Java_me_nekosu_aqnya_ncore_addRule(
     status_bits: c.jlong,
 ) callconv(.c) c.jint {
     _ = thiz;
-
+    _ = env;
+    _ = path_str;
+    _ = status_bits;
     return 0;
 }
 
@@ -209,6 +211,8 @@ export fn Java_me_nekosu_aqnya_ncore_delRule(
     path_str: c.jstring,
 ) callconv(.c) c.jint {
     _ = thiz;
+    _ = env;
+    _ = path_str;
     return 0;
 }
 

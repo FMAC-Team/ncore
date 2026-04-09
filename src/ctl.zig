@@ -46,11 +46,9 @@ pub const IOC_CHK_WRITE = _IOR(2, u32);
 pub const IOC_ADD_UID = _IOW(3, u32);
 pub const IOC_DEL_UID = _IOW(4, u32);
 pub const IOC_HAS_UID = _IOWR(5, u32);
-pub const IOC_ADD_RULE = _IOW(6, FmacRule);
-pub const IOC_DEL_RULE = _IOW(7, FmacRule);
-pub const IOC_SET_CAP = _IOW(8, FmacUidCap);
-pub const IOC_GET_CAP = _IOWR(9, FmacUidCap);
-pub const IOC_DEL_CAP = _IOW(10, FmacUidCap);
+pub const IOC_SET_CAP = _IOW(6, FmacUidCap);
+pub const IOC_GET_CAP = _IOWR(7, FmacUidCap);
+pub const IOC_DEL_CAP = _IOW(8, FmacUidCap);
 
 fn prctl1(op: u32) !isize {
     const rop = op + 200;

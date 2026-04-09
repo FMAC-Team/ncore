@@ -200,22 +200,6 @@ export fn Java_me_nekosu_aqnya_ncore_addRule(
 ) callconv(.c) c.jint {
     _ = thiz;
 
-    if (ctlfd < 0) {
-        ctl.scanCtlFd(&ctlfd) catch |err| {
-            log.info_f("addRule: scan ctlfd failed:{s}", .{@errorName(err)});
-            return -1;
-        };
-    }
-    log.info_f("addRule: ctlfd={d}", .{ctlfd});
-
-    const chars = env.*.*.GetStringUTFChars.?(env, path_str, null) orelse return -1;
-    defer env.*.*.ReleaseStringUTFChars.?(env, path_str, chars);
-
-    const slice = std.mem.span(chars);
-    ctl.addRule(ctlfd, slice, @intCast(status_bits)) catch |err| {
-        log.info_f("addRule failed:{}", .{err});
-        return -1;
-    };
     return 0;
 }
 
@@ -225,23 +209,6 @@ export fn Java_me_nekosu_aqnya_ncore_delRule(
     path_str: c.jstring,
 ) callconv(.c) c.jint {
     _ = thiz;
-
-    if (ctlfd < 0) {
-        ctl.scanCtlFd(&ctlfd) catch |err| {
-            log.info_f("delRule: scan ctlfd failed:{s}", .{@errorName(err)});
-            return -1;
-        };
-    }
-    log.info_f("delRule: ctlfd={d}", .{ctlfd});
-
-    const chars = env.*.*.GetStringUTFChars.?(env, path_str, null) orelse return -1;
-    defer env.*.*.ReleaseStringUTFChars.?(env, path_str, chars);
-
-    const slice = std.mem.span(chars);
-    ctl.delRule(ctlfd, slice) catch |err| {
-        log.info_f("delRule failed:{}", .{err});
-        return -1;
-    };
     return 0;
 }
 

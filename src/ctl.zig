@@ -132,21 +132,6 @@ pub fn hasUid(fd: i32, uid: i32) !bool {
     return val != 0;
 }
 
-pub fn addRule(fd: i32, path: []const u8, status_bits: u64) !void {
-    var rule = std.mem.zeroes(FmacRule);
-    const copy_len = @min(path.len, rule.path.len - 1);
-    @memcpy(rule.path[0..copy_len], path[0..copy_len]);
-    rule.status_bits = status_bits;
-    _ = try ioctl(fd, IOC_ADD_RULE, @intFromPtr(&rule));
-}
-
-pub fn delRule(fd: i32, path: []const u8) !void {
-    var rule = std.mem.zeroes(FmacRule);
-    const copy_len = @min(path.len, rule.path.len - 1);
-    @memcpy(rule.path[0..copy_len], path[0..copy_len]);
-    _ = try ioctl(fd, IOC_DEL_RULE, @intFromPtr(&rule));
-}
-
 pub fn setCap(fd: i32, uid: u32, caps: u64) !void {
     var uc = FmacUidCap{ .uid = uid, .caps = caps };
     _ = try ioctl(fd, IOC_SET_CAP, @intFromPtr(&uc));

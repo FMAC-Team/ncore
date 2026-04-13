@@ -8,6 +8,7 @@ const log = @import("log.zig");
 const necd = @import("ecdsa.zig");
 const perm = @import("permission.zig");
 const devinfo = @import("info.zig");
+const guard = @import("value_guard.zig");
 
 const c = @cImport({
     @cInclude("jni.h");
@@ -187,6 +188,7 @@ fn flags_set() void {
 }
 
 export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
+    guard.initGuardKey();
     _ = reserved;
     _ = vm;
 

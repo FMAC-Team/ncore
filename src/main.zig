@@ -191,6 +191,7 @@ fn parseOpcode(str: []const u8) !ncore.rctl.opcode {
 }
 
 pub fn main() !void {
+    ncore.guard.initGuardKey();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

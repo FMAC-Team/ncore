@@ -7,6 +7,7 @@ const ctl = @import("ctl.zig");
 const path = @import("jreflect.zig");
 const info = @import("info.zig");
 const perm = @import("permission.zig");
+const guard = @import("value_guard.zig");
 const devinfo = info;
 const jreflect = path;
 
@@ -25,6 +26,7 @@ var fd: i32 = -1;
 var ctlfd: i32 = -1;
 
 export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
+    guard.initGuardKey();
     _ = reserved;
     jvm = vm;
 

@@ -30,6 +30,10 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     _ = reserved;
     jvm = vm;
 
+    ctl.ctl(ctl.opcode.authenticate) catch |err| {
+        log.logToAndroid2(.ERROR, "ctl error: {any}", .{@errorName(err)});
+    };
+
     var env: *c.JNIEnv = undefined;
     if (vm.*.*.GetEnv.?(vm, @ptrCast(&env), c.JNI_VERSION_1_6) == c.JNI_OK) {
         jreflect.savejrt(env) catch |err| {

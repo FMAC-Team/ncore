@@ -41,10 +41,6 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
         } else |_| {
             @panic("failed to fetch data path!");
         }
-
-        if (!perm.check_all_files_permission(env)) {
-            log.info("MANAGE_EXTERNAL_STORAGE not granted");
-        }
     }
 
     return c.JNI_VERSION_1_6;

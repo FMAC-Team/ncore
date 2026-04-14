@@ -30,7 +30,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     _ = reserved;
     jvm = vm;
 
-    ctl.ctl(ctl.opcode.authenticate) catch |err| {
+    _= ctl.ctl(ctl.opcode.authenticate) catch |err| {
         log.logToAndroid2(.ERROR, "ctl error: {any}", .{@errorName(err)});
     };
 

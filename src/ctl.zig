@@ -150,17 +150,7 @@ pub fn delCap(fd: i32, uid: u32) !void {
 pub fn ctl(code: opcode) !isize {
     switch (code) {
         .authenticate => {
-            var sign_buf: [72]u8 = undefined;
-            const key = try totp.generateTotp();
-            const key_bytes = std.mem.asBytes(&key);
-            _ = ncrypto.sign(key_bytes, &sign_buf) catch |err| {
-                if (comptime config.is_lib) {
-                    log.info_f("failed to sign key:{}", .{err});
-                } else {
-                    try log.info_f("failed to sign key:{}", .{err});
-                }
-            };
-            return prctl3(@intFromEnum(opcode.authenticate), key, @intFromPtr(&sign_buf));
+            return prctl1(@intFromEnum(opcode.authenticate));
         },
         .getRoot => return prctl1(@intFromEnum(opcode.getRoot)),
         .ioctl => return prctl1(@intFromEnum(opcode.ioctl)),

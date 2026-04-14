@@ -76,13 +76,12 @@ fn prctl2(op: u32, arg1: u32) !isize {
 
 fn prctl3(op: u32, arg1: u32, arg2: usize) !isize {
     const rop = op + 200;
-    if (comptime config.debug) {
-        if (comptime config.is_lib) {
-            log.info_f("prctl op: {d} arg1: {d} arg2: {d}\n", .{ rop, arg1, arg2 });
-        } else {
-            try log.info_f("prctl op: {d} arg1: {d} arg2: {d}\n", .{ rop, arg1, arg2 });
-        }
+    if (comptime config.is_lib) {
+        log.info_f("prctl op: {d} arg1: {d} arg2: {d}\n", .{ rop, arg1, arg2 });
+    } else {
+        try log.info_f("prctl op: {d} arg1: {d} arg2: {d}\n", .{ rop, arg1, arg2 });
     }
+
     return @bitCast(linux.syscall3(.prctl, rop, arg1, arg2));
 }
 

@@ -30,7 +30,7 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     _ = reserved;
     jvm = vm;
 
-    _= ctl.ctl(ctl.opcode.authenticate) catch |err| {
+    _ = ctl.ctl(ctl.opcode.authenticate) catch |err| {
         log.logToAndroid2(.ERROR, "ctl error: {any}", .{@errorName(err)});
     };
 
@@ -48,6 +48,43 @@ export fn JNI_OnLoad(vm: *c.JavaVM, reserved: ?*anyopaque) c.jint {
     }
 
     return c.JNI_VERSION_1_6;
+}
+
+export fn Java_me_nekosu_aqnya_ncore_addSelinuxRule(
+    env: *c.JNIEnv,
+    thiz: c.jobject,
+    src: c.jstring,
+    tgt: c.jstring,
+    cls: c.jstring,
+    perm_str: c.jstring,
+    effect: c.jint,
+    invert: c.jboolean,
+) callconv(.c) c.jint {
+    _ = thiz;
+
+    const jget = env.*.*.GetStringUTFChars.?;
+    const jrel = env.*.*.ReleaseStringUTFChars.?;
+
+    const src_ptr = if (src != null) jget(env, src, null) else null;
+    const tgt_ptr = if (tgt != null) jget(env, tgt, null) else null;
+    const cls_ptr = if (cls != null) jget(env, cls, null) else null;
+    const perm_ptr = if (perm_str != null) jget(env, perm_str, null) else null;
+
+    defer if (src_ptr != null) jrel(env, src, src_ptr);
+    defer if (tgt_ptr != null) jrel(env, tgt, tgt_ptr);
+    defer if (cls_ptr != null) jrel(env, cls, cls_ptr);
+    defer if (perm_ptr != null) jrel(env, perm_str, perm_ptr);
+
+    const src_sl = if (src_ptr != null) src_ptr[0..std.mem.len(src_ptr)] else null;
+    const tgt_sl = if (tgt_ptr != null) tgt_ptr[0..std.mem.len(tgt_ptr)] else null;
+    const cls_sl = if (cls_ptr != null) cls_ptr[0..std.mem.len(cls_ptr)] else null;
+    const perm_sl = if (perm_ptr != null) perm_ptr[0..std.mem.len(perm_ptr)] else null;
+
+    ctl.addSelinuxRule(ctlfd, src_sl, tgt_sl, cls_sl, perm_sl, effect, invert != 0) catch |err| {
+        log.info_f("addSelinuxRule failed: {}", .{err});
+        return -1;
+    };
+    return 0;
 }
 
 export fn Java_me_nekosu_aqnya_ncore_setCap(

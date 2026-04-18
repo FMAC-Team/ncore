@@ -288,6 +288,6 @@ fn authenticate(op: ncore.rctl.opcode) !void {
         return;
     };
     if (comptime config.debug) {
-        try log.info_f("result: {d}", .{result});
+        try log.info_f("result: {d}\n", .{result});
     }
 }

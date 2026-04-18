@@ -15,14 +15,18 @@ pub const opcode = enum(u32) {
     unknown,
 };
 
-pub const FmacRule = extern struct {
-    path: [1024]u8,
-    status_bits: u64,
-};
-
-pub const FmacUidCap = extern struct {
+const FmacUidCap = extern struct {
     uid: u32,
     caps: u64,
+};
+
+const FmacSepolicyRule = extern struct {
+    src: [64]u8,
+    tgt: [64]u8,
+    cls: [64]u8,
+    perm: [64]u8,
+    effect: i32,
+    invert: i32,
 };
 
 const MAGIC: u32 = 'F';
@@ -49,6 +53,7 @@ pub const IOC_HAS_UID = _IOWR(5, u32);
 pub const IOC_SET_CAP = _IOW(6, FmacUidCap);
 pub const IOC_GET_CAP = _IOWR(7, FmacUidCap);
 pub const IOC_DEL_CAP = _IOW(8, FmacUidCap);
+pub const IOC_SEL_ADD_RULE = _IOW(9, FmacSepolicyRule);
 
 fn prctl1(op: u32) !isize {
     const rop = op + 200;
@@ -147,11 +152,22 @@ pub fn delCap(fd: i32, uid: u32) !void {
     _ = try ioctl(fd, IOC_DEL_CAP, @intFromPtr(&uc));
 }
 
+pub fn addSelinuxRule(fd: i32, src: ?[]const u8, tgt: ?[]const u8, cls: ?[]const u8, perm: ?[]const u8, effect: i32, invert: bool) !void {
+    var r = std.mem.zeroes(FmacSepolicyRule);
+
+    if (src) |s| _ = std.fmt.bufPrint(&r.src, "{s}", .{s}) catch {};
+    if (tgt) |t| _ = std.fmt.bufPrint(&r.tgt, "{s}", .{t}) catch {};
+    if (cls) |c| _ = std.fmt.bufPrint(&r.cls, "{s}", .{c}) catch {};
+    if (perm) |p| _ = std.fmt.bufPrint(&r.perm, "{s}", .{p}) catch {};
+    r.effect = effect;
+    r.invert = if (invert) 1 else 0;
+
+    _ = try ioctl(fd, IOC_SEL_ADD_RULE, @intFromPtr(&r));
+}
+
 pub fn ctl(code: opcode) !isize {
     switch (code) {
-        .authenticate => {
-            return prctl1(@intFromEnum(opcode.authenticate));
-        },
+        .authenticate => return prctl1(@intFromEnum(opcode.authenticate)),
         .getRoot => return prctl1(@intFromEnum(opcode.getRoot)),
         .ioctl => return prctl1(@intFromEnum(opcode.ioctl)),
         .unknown => return -1,

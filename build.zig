@@ -1,34 +1,39 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
-    const ndk_version = "29.0.14206865";
-    const ndk_api = "27";
-    const version = "0.1.1";
     const target = b.standardTargetOptions(.{});
-
     const optimize = b.standardOptimizeOption(.{});
 
-    const mod = b.addModule("ncore", .{
-        .root_source_file = b.path("src/root.zig"),
+    const ndk_sysroot = b.option(
+        []const u8,
+        "ndk-sysroot",
+        "Path to NDK sysroot (.../toolchains/llvm/prebuilt/linux-x86_64/sysroot)",
+    );
+    const ndk_api = b.option(
+        []const u8,
+        "ndk-api",
+        "Android API level (default: 27)",
+    ) orelse "30";
 
+    const mod = b.addModule("ncore2", .{
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
     });
 
     const exe = b.addExecutable(.{
-        .name = "ncore",
+        .name = "ncore2",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-
             .imports = &.{
-                .{ .name = "ncore", .module = mod },
+                .{ .name = "ncore2", .module = mod },
             },
         }),
     });
 
     const lib = b.addLibrary(.{
-        .name = "ncore",
+        .name = "ncore2",
         .linkage = .dynamic,
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/jni.zig"),
@@ -36,74 +41,26 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         }),
     });
-
-    const libinit = b.addLibrary(.{
-        .name = "ncore_init",
-        .linkage = .dynamic,
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/init.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-
-    const options = b.addOptions();
-    options.addOption([]const u8, "version", version);
-
-    exe.root_module.addOptions("build_options", options);
-    lib.root_module.addOptions("build_options", options);
-    libinit.root_module.addOptions("build_options", options);
-
-    const lib_options = b.addOptions();
-    lib_options.addOption(bool, "is_lib", true);
-    const exe_options = b.addOptions();
-    exe_options.addOption(bool, "is_lib", false);
-
-    if (optimize == .Debug) {
-        lib_options.addOption(bool, "debug", true);
-        exe_options.addOption(bool, "debug", true);
-    }
+    
     if (optimize != .Debug) {
         exe.root_module.strip = true;
         exe.pie = true;
         exe.lto = .full;
-        lib.lto = .full;
         lib.root_module.strip = true;
-        libinit.lto = .full;
-        libinit.root_module.strip = true;
-        lib_options.addOption(bool, "debug", false);
-
-        exe_options.addOption(bool, "debug", false);
+        lib.lto = .full;
     }
 
-    lib.root_module.addOptions("config", lib_options);
-    libinit.root_module.addOptions("config", lib_options);
-    exe.root_module.addOptions("config", exe_options);
-    mod.addOptions("config", exe_options);
-
     if (target.result.abi == .android) {
-        const arch_name = @tagName(target.result.cpu.arch);
-
-        const triple = b.fmt("{s}-linux-android/", .{arch_name});
-
-        const path = std.posix.getenv("ANDROID_HOME") orelse {
-            return error.CantfindAndroidHome;
+        const sysroot = ndk_sysroot orelse {
+            std.debug.print("error: -Dndk-sysroot=<path> is required for Android targets\n", .{});
+            return error.MissingNdkSysroot;
         };
-        const sys_root = b.pathJoin(&.{ path, "ndk/", ndk_version, "toolchains/llvm/prebuilt/linux-x86_64/sysroot" });
-        const include = b.pathJoin(&.{ sys_root, "/usr/include" });
-        const arch_include = b.pathJoin(&.{ include, "/aarch64-linux-android" });
-        const libpath = b.pathJoin(&.{ sys_root, "/usr/lib/", triple, ndk_api });
-        exe.addIncludePath(.{ .cwd_relative = include });
-        exe.addLibraryPath(.{ .cwd_relative = libpath });
-        mod.addIncludePath(.{ .cwd_relative = include });
-        mod.addLibraryPath(.{ .cwd_relative = libpath });
-        lib.addIncludePath(.{ .cwd_relative = include });
-        lib.addIncludePath(.{ .cwd_relative = arch_include });
-        lib.addLibraryPath(.{ .cwd_relative = libpath });
 
-        libinit.addIncludePath(.{ .cwd_relative = include });
-        libinit.addIncludePath(.{ .cwd_relative = arch_include });
-        libinit.addLibraryPath(.{ .cwd_relative = libpath });
+        const arch_name = @tagName(target.result.cpu.arch);
+        const triple = b.fmt("{s}-linux-android", .{arch_name});
+        const include = b.pathJoin(&.{ sysroot, "usr/include" });
+        const arch_include = b.pathJoin(&.{ include, triple });
+        const libpath = b.pathJoin(&.{ sysroot, "usr/lib", triple, ndk_api });
 
         const libc_content = b.fmt(
             \\include_dir={s}
@@ -113,41 +70,32 @@ pub fn build(b: *std.Build) !void {
             \\kernel32_lib_dir=
             \\gcc_dir=
         , .{ include, include, libpath });
+        const libc_path = b.addWriteFiles().add("libc.txt", libc_content);
 
-        const libc_path = b.addWriteFile("libc_cfg", "").add("libc.txt", libc_content);
-        lib.setLibCFile(libc_path);
-        lib.linkSystemLibrary("log");
-        lib.linkSystemLibrary("c");
-        libinit.setLibCFile(libc_path);
-        libinit.linkSystemLibrary("log");
-        libinit.linkSystemLibrary("c");
+        for (&[_]*std.Build.Step.Compile{lib}) |artifact| {
+            artifact.root_module.addIncludePath(.{ .cwd_relative = include });
+            artifact.root_module.addIncludePath(.{ .cwd_relative = arch_include });
+            artifact.root_module.addLibraryPath(.{ .cwd_relative = libpath });
+            artifact.root_module.linkSystemLibrary("log", .{});
+            artifact.root_module.linkSystemLibrary("c", .{});
+            artifact.setLibCFile(libc_path);
+        }
+        mod.addIncludePath(.{ .cwd_relative = include });
+        mod.addLibraryPath(.{ .cwd_relative = libpath });
     }
 
     b.installArtifact(exe);
     b.installArtifact(lib);
-    b.installArtifact(libinit);
 
     const run_step = b.step("run", "Run the app");
-
     const run_cmd = b.addRunArtifact(exe);
     run_step.dependOn(&run_cmd.step);
-
     run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| run_cmd.addArgs(args);
 
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
-    });
-
+    const mod_tests = b.addTest(.{ .root_module = mod });
     const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-
+    const exe_tests = b.addTest(.{ .root_module = exe.root_module });
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
     const test_step = b.step("test", "Run tests");

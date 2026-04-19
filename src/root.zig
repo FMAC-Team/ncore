@@ -1,11 +1,18 @@
-pub const totp = @import("totp.zig");
-pub const boot = @import("boot.zig");
-pub const rctl = @import("ctl.zig");
-pub const log = @import("log.zig");
-pub const config = @import("config");
-pub const rload = @import("load.zig");
-pub const su = @import("su.zig");
-pub const guard = @import("value_guard.zig");
+//! By convention, root.zig is the root source file when making a package.
+const std = @import("std");
+const Io = std.Io;
 
-pub const ctl = rctl.ctl;
-pub const load = rload.load;
+/// This is a documentation comment to explain the `printAnotherMessage` function below.
+///
+/// Accepting an `Io.Writer` instance is a handy way to write reusable code.
+pub fn printAnotherMessage(writer: *Io.Writer) Io.Writer.Error!void {
+    try writer.print("Run `zig build test` to run the tests.\n", .{});
+}
+
+pub fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+
+test "basic add functionality" {
+    try std.testing.expect(add(3, 7) == 10);
+}

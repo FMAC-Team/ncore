@@ -15,9 +15,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: build libncore
       run: |
-           curl -OL https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz
-           tar -xvf zig-x86_64-linux-0.15.2.tar.xz
-           ./zig-x86_64-linux-0.15.2/zig build -Dtarget=aarch64-linux-android -Doptimize=ReleaseSafe
+           curl -OL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz
+           tar -xvf zig-x86_64-linux-0.16.0.tar.xz
+           ./zig-x86_64-linux-0.16.0/zig build -Dtarget=aarch64-linux-android -Doptimize=ReleaseSafe -Dndk-sysroot=$ANDROID_HOME/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/sysroot
        
     - name: Upload lib
       uses: actions/upload-artifact@v4

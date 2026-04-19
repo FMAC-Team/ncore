@@ -66,10 +66,10 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug) {
         exe.root_module.strip = true;
         exe.pie = true;
-        exe.want_lto = true;
-        lib.want_lto = true;
+        exe.lto = .full;
+        lib.lto = .full;
         lib.root_module.strip = true;
-        libinit.want_lto = true;
+        libinit.lto = .full;
         libinit.root_module.strip = true;
         lib_options.addOption(bool, "debug", false);
 
@@ -82,12 +82,13 @@ pub fn build(b: *std.Build) !void {
     mod.addOptions("config", exe_options);
 
     if (target.result.abi == .android) {
-        const allocator = b.allocator;
         const arch_name = @tagName(target.result.cpu.arch);
 
         const triple = b.fmt("{s}-linux-android/", .{arch_name});
 
-        const path = try std.process.getEnvVarOwned(allocator, "ANDROID_HOME");
+        const path = std.posix.getenv("ANDROID_HOME") orelse {
+            return error.CantfindAndroidHome;
+        };
         const sys_root = b.pathJoin(&.{ path, "ndk/", ndk_version, "toolchains/llvm/prebuilt/linux-x86_64/sysroot" });
         const include = b.pathJoin(&.{ sys_root, "/usr/include" });
         const arch_include = b.pathJoin(&.{ include, "/aarch64-linux-android" });
